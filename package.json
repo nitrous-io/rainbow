@@ -1,0 +1,30 @@
+{
+  "name": "action-box-server"
+, "description": "an api server for action.io boxes"
+, "author": "Peter Jihoon Kim"
+, "version": "0.0.1"
+, "private": true
+, "main": "./app"
+, "dependencies": {
+    "coffee-script"  : "1.3.x"
+  , "express"        : "2.5.x"
+  , "async"          : "0.1.x"
+  , "underscore"     : "1.3.x"
+  , "pg"             : "0.6.x"
+  , "fs-watch-tree"  : "0.2.x"
+  }
+, "devDependencies": {
+    "mocha"        : "1.0.x"
+  , "should"       : "0.6.x"
+  , "expect.js"    : "0.1.2"
+  , "sinon"        : "1.3.4"
+  , "request"      : "2.9.x"
+  , "factory-lady" : ">= 0.1.0"
+  , "jquery"       : "1.7.x"
+  }
+, "engine": "node 0.6.x"
+, "scripts": {
+    "test": "rake test"
+  }
+}
+

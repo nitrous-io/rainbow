@@ -1,15 +1,50 @@
-lib-cov
-*.seed
-*.log
-*.csv
-*.dat
-*.out
+# App
+lib-cov/
+tmp/
+pids/
+logs/
+results/
+node_modules/
+*.swp
+**.orig
 *.pid
-*.gz
+*.log
+vendor/bundle/
+public/assets/
+config/database.coffee
 
-pids
-logs
-results
+# OSX
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
 
-node_modules
-npm-debug.log
+# Linux
+*~
+.directory
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# RubyMine
+.idea/
+
+# TextMate
+*.tmproj
+*.tmproject
+tmtags
+
+# Vim
+.*.sw[a-z]
+*.un~
+Session.vim
+
+# Emacs
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+.elc
+auto-save-list
+tramp
+.\#*

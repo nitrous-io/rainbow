@@ -20,5 +20,9 @@ if require.main == module
   else
     console.log 'Could not start Action Box Server!'
 
+if env == 'production'
+  process.on 'uncaughtException', (err) ->
+    console.log err
+
 module.exports = app
 

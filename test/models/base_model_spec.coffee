@@ -11,7 +11,8 @@ describe 'BaseModel', ->
           throw err if err
           client.query "CREATE TABLE \"test_table\" (
             id integer PRIMARY KEY,
-            foo varchar(255)
+            foo varchar(255),
+            bar integer
           )", (err, res) ->
             throw err if err
             done()
@@ -74,7 +75,7 @@ describe 'BaseModel', ->
           before (done) ->
             pg.connect (err, client) ->
               throw err if err
-              client.query 'INSERT INTO "test_table" (id, foo) VALUES ($1, $2)', [123, 'bar'], (err, res) ->
+              client.query 'INSERT INTO "test_table" (id, foo, bar) VALUES ($1, $2, $3)', [123, 'test', 42], (err, res) ->
                 throw err if err
                 done()
 
@@ -85,12 +86,23 @@ describe 'BaseModel', ->
                 throw err if err
                 done()
 
-          it 'fetches a row with given id and returns a model object with the attributes', (done) ->
-            BaseModel.findById 123, (err, model) ->
-              model.should.be.an.instanceof BaseModel
-              model.id.should.equal 123
-              model.foo.should.equal 'bar'
-              done()
+          context 'when columns are not specified', ->
+            it 'fetches a row with given id and returns a model object with all attributes', (done) ->
+              BaseModel.findById 123, (err, model) ->
+                model.should.be.an.instanceof BaseModel
+                model.id.should.equal 123
+                model.foo.should.equal 'test'
+                model.bar.should.equal 42
+                done()
+
+          context 'when columns are specified', ->
+            it 'fetches a row with given id and returns a model object with specified attributes', (done) ->
+              BaseModel.findById 123, ['id', 'foo'], (err, model) ->
+                model.should.be.an.instanceof BaseModel
+                model.id.should.equal 123
+                model.foo.should.equal 'test'
+                model.should.not.have.property 'bar'
+                done()
 
     context 'when tableName property is not defined', ->
       beforeEach ->

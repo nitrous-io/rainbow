@@ -2,7 +2,12 @@ pg = require('pg').native
 
 module.exports = class BaseModel
 
-BaseModel.findById = (id, callback) ->
+BaseModel.findById = (id, columns, callback) ->
+  if typeof columns == 'function'
+    callback = columns
+    columns = '*'
+  else
+    columns = columns.join(', ')
   unless this.tableName
     callback(new Error('tableName not defined'), null)
     return
@@ -10,7 +15,7 @@ BaseModel.findById = (id, callback) ->
     if err
       callback(err, null)
       return
-    client.query "SELECT * FROM #{@tableName} WHERE id = $1", [id], (err, res) =>
+    client.query "SELECT #{columns} FROM #{@tableName} WHERE id = $1", [id], (err, res) =>
       if err
         callback(err, null)
         return

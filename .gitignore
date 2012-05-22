@@ -12,6 +12,7 @@ node_modules/
 vendor/bundle/
 public/assets/
 config/database.coffee
+.env
 
 # OSX
 .DS_Store

@@ -6,6 +6,7 @@ pg = require('pg').native
 
 app = express.createServer()
 env = app.settings.env
+_.extend app.settings, require './config/settings'
 
 require('./config/application')(app)
 require('./config/routes')(app)

@@ -68,6 +68,7 @@ describe 'BaseModel', ->
         context 'when a row with a given id does not exist', ->
           it 'returns a null object', (done) ->
             BaseModel.findById 123, (err, model) ->
+              expect(err).to.be null
               expect(model).to.be null
               done()
 

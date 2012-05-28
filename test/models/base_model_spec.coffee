@@ -2,7 +2,7 @@ BaseModel = require '../../app/models/base_model'
 pg = require('pg').native
 
 describe 'BaseModel', ->
-  describe '.findById', ->
+  describe '.findOne', ->
     context 'when tableName property is defined', ->
       pgConnectStub = null
 
@@ -39,7 +39,7 @@ describe 'BaseModel', ->
           pgConnectStub.restore()
 
         it 'calls callback with error', (done) ->
-          BaseModel.findById 123, (err, model) ->
+          BaseModel.findOne 'id = $1', [123], (err, model) ->
             err.should.equal error
             expect(model).to.be null
             done()
@@ -60,14 +60,14 @@ describe 'BaseModel', ->
             pgConnectStub.restore()
 
           it 'calls callback with error', (done) ->
-            BaseModel.findById 123, (err, model) ->
+            BaseModel.findOne 'id = $1', [123], (err, model) ->
               err.should.equal error
               expect(model).to.be null
               done()
 
         context 'when a row with a given id does not exist', ->
           it 'returns a null object', (done) ->
-            BaseModel.findById 123, (err, model) ->
+            BaseModel.findOne 'id = $1', [123], (err, model) ->
               expect(err).to.be null
               expect(model).to.be null
               done()
@@ -89,7 +89,7 @@ describe 'BaseModel', ->
 
           context 'when columns are not specified', ->
             it 'fetches a row with given id and returns a model object with all attributes', (done) ->
-              BaseModel.findById 123, (err, model) ->
+              BaseModel.findOne 'id = $1', [123], (err, model) ->
                 model.should.be.an.instanceof BaseModel
                 model.id.should.equal 123
                 model.foo.should.equal 'test'
@@ -98,7 +98,7 @@ describe 'BaseModel', ->
 
           context 'when columns are specified', ->
             it 'fetches a row with given id and returns a model object with specified attributes', (done) ->
-              BaseModel.findById 123, ['id', 'foo'], (err, model) ->
+              BaseModel.findOne 'id = $1', [123], ['id', 'foo'], (err, model) ->
                 model.should.be.an.instanceof BaseModel
                 model.id.should.equal 123
                 model.foo.should.equal 'test'
@@ -110,9 +110,29 @@ describe 'BaseModel', ->
         delete BaseModel.tableName
 
       it 'calls callback with error', (done) ->
-        BaseModel.findById 123, (err, model) ->
+        BaseModel.findOne 'id = $1', [123], (err, model) ->
           err.should.be.an.instanceof Error
           err.message.should.match /tableName/
           expect(model).to.be null
           done()
+
+  describe '.findById', ->
+    findOneStub = cbSpy = null
+
+    beforeEach ->
+      findOneStub = sinon.stub BaseModel, 'findOne'
+      cbSpy = sinon.spy()
+
+    afterEach ->
+      findOneStub.restore()
+
+    context 'when columns option is given', ->
+      it 'selects selected columns only', ->
+        BaseModel.findById(123, ['foo', 'bar'], cbSpy)
+        findOneStub.calledWith('id = $1', [123], ['foo', 'bar'], cbSpy).should.be.true
+
+    context 'when columns option is not given', ->
+      it 'selects all columns (*)', ->
+        BaseModel.findById(123, cbSpy)
+        findOneStub.calledWith('id = $1', [123], cbSpy).should.be.true
 

@@ -1,6 +1,8 @@
 pg = require('pg').native
 
 module.exports = class BaseModel
+  constructor: (attributes) ->
+    this[k] = v for own k, v of attributes
 
 BaseModel.findOne = (condition, values, columns, callback) ->
   if typeof columns == 'function'

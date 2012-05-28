@@ -2,6 +2,13 @@ BaseModel = require '../../app/models/base_model'
 pg = require('pg').native
 
 describe 'BaseModel', ->
+  describe 'constructor', ->
+    it 'assigns key-value pairs given', ->
+      model = new BaseModel(foo: 'F00', bar: 'B@R', baz: 123)
+      model.foo.should.equal 'F00'
+      model.bar.should.equal 'B@R'
+      model.baz.should.equal 123
+
   describe '.findOne', ->
     context 'when tableName property is defined', ->
       pgConnectStub = null

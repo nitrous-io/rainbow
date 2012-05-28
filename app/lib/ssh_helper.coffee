@@ -2,10 +2,10 @@ fs = require 'fs'
 tmp = require 'tmp'
 childProcess = require 'child_process'
 
-module.exports = class SSHCommand
+module.exports = class SSHHelper
   constructor: (@user, @host, @port, @key) ->
 
-  exec: (command, callback) ->
+  writeKeyFile: (callback) -> # callback(err, sshArgs, deleteKeyFile)
     tmp.file (err, path, fd) =>
       if err
         callback(err)
@@ -15,8 +15,7 @@ module.exports = class SSHCommand
         if err
           fs.unlink path, -> callback(err)
           return
-        args = [
-          'ssh'
+        sshArgs = [
           '-i', path
           '-o', 'UserKnownHostsFile=/dev/null'
           '-o', 'StrictHostKeyChecking=no'
@@ -24,9 +23,19 @@ module.exports = class SSHCommand
           '-o', 'PasswordAuthentication=no'
           '-p', "#{@port}"
           "#{@user}@#{@host}"
-          command
         ]
-        childProcess.execFile '/usr/bin/env', args, timeout: 20000, (err, stdout, stderr) ->
+        deleteKeyFile = (callback) ->
           fs.unlink path, ->
-            callback(err, stdout, stderr)
+            callback()
+        callback(null, sshArgs, deleteKeyFile)
+
+  execCommand: (command, callback) -> # callback(err, stdout, stderr)
+    this.writeKeyFile (err, sshArgs, deleteKeyFile) ->
+      if err
+        callback(err)
+        return
+      sshArgs.push(command)
+      childProcess.execFile '/usr/bin/ssh', sshArgs, timeout: 20000, (err, stdout, stderr) ->
+        deleteKeyFile ->
+          callback(err, stdout, stderr)
 

@@ -11,8 +11,6 @@ describe 'BaseModel', ->
 
   describe '.findOne', ->
     context 'when tableName property is defined', ->
-      pgConnectStub = null
-
       before (done) ->
         pg.connect (err, client) ->
           throw err if err
@@ -39,11 +37,11 @@ describe 'BaseModel', ->
 
         beforeEach ->
           error = new Error
-          pgConnectStub = sinon.stub pg, 'connect', (cb) ->
+          sinon.stub pg, 'connect', (cb) ->
             cb(error, null)
 
         afterEach ->
-          pgConnectStub.restore()
+          pg.connect.restore()
 
         it 'calls callback with error', (done) ->
           BaseModel.findOne 'id = $1', [123], (err, model) ->
@@ -60,11 +58,11 @@ describe 'BaseModel', ->
             fakeClient = { query: -> }
             sinon.stub fakeClient, 'query', (q, v, cb) ->
               cb(error, null)
-            pgConnectStub = sinon.stub pg, 'connect', (cb) ->
+            sinon.stub pg, 'connect', (cb) ->
               cb(null, fakeClient)
 
           afterEach ->
-            pgConnectStub.restore()
+            pg.connect.restore()
 
           it 'calls callback with error', (done) ->
             BaseModel.findOne 'id = $1', [123], (err, model) ->
@@ -124,22 +122,22 @@ describe 'BaseModel', ->
           done()
 
   describe '.findById', ->
-    findOneStub = cbSpy = null
+    cbSpy = null
 
     beforeEach ->
-      findOneStub = sinon.stub BaseModel, 'findOne'
+      sinon.stub BaseModel, 'findOne'
       cbSpy = sinon.spy()
 
     afterEach ->
-      findOneStub.restore()
+      BaseModel.findOne.restore()
 
     context 'when columns option is given', ->
       it 'selects selected columns only', ->
         BaseModel.findById(123, ['foo', 'bar'], cbSpy)
-        findOneStub.calledWith('id = $1', [123], ['foo', 'bar'], cbSpy).should.be.true
+        BaseModel.findOne.calledWith('id = $1', [123], ['foo', 'bar'], cbSpy).should.be.true
 
     context 'when columns option is not given', ->
       it 'selects all columns (*)', ->
         BaseModel.findById(123, cbSpy)
-        findOneStub.calledWith('id = $1', [123], cbSpy).should.be.true
+        BaseModel.findOne.calledWith('id = $1', [123], cbSpy).should.be.true
 

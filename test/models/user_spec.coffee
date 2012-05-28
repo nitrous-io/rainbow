@@ -75,8 +75,6 @@ describe 'User', ->
             done()
 
       context 'when the session contains warden.user.user.key object with the user id and salt', ->
-        userFindByIdStub = null
-
         beforeEach ->
           session = new MessageVerifier('secret_token').generate('warden.user.user.key': ['User', [123], '$2a$10$Z/uz106hoAT7lRhA1mLYS.'])
 
@@ -85,12 +83,12 @@ describe 'User', ->
 
           beforeEach ->
             error = new Error
-            userFindByIdStub = sinon.stub User, 'findById', (id, columns, callback) ->
+            sinon.stub User, 'findById', (id, columns, callback) ->
               callback = columns if typeof columns == 'function'
               callback(error, null)
 
           afterEach ->
-            userFindByIdStub.restore()
+            User.findById.restore()
 
           it 'makes callback with null', (done) ->
             User.verifyUserSession session, (err, user) ->
@@ -100,12 +98,12 @@ describe 'User', ->
 
         context 'when the user with a id given in the session is absent', ->
           beforeEach ->
-            userFindByIdStub = sinon.stub User, 'findById', (id, columns, callback) ->
+            sinon.stub User, 'findById', (id, columns, callback) ->
               callback = columns if typeof columns == 'function'
               callback(null, null)
 
           afterEach ->
-            userFindByIdStub.restore()
+            User.findById.restore()
 
           it 'makes callback with null', (done) ->
             User.verifyUserSession session, (err, user) ->
@@ -120,12 +118,12 @@ describe 'User', ->
             user = new User
             user.id = 123
 
-            userFindByIdStub = sinon.stub User, 'findById', (id, columns, callback) ->
+            sinon.stub User, 'findById', (id, columns, callback) ->
               callback = columns if typeof columns == 'function'
               callback(null, user)
 
           afterEach ->
-            userFindByIdStub.restore()
+            User.findById.restore()
 
           context 'when the password salt given in the session is incorrect', ->
             beforeEach ->

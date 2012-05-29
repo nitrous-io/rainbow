@@ -15,7 +15,9 @@ BaseModel.findOne = (condition, values, columns, callback) ->
     if err
       callback(err, null)
       return
-    columns = columns.join(', ') if columns instanceof Array
+    if columns instanceof Array
+      columns.unshift('id') if columns.indexOf('id') == -1
+      columns = columns.join(', ')
     client.query "SELECT #{columns} FROM #{@tableName} WHERE #{condition} LIMIT 1", values, (err, res) =>
       if err
         callback(err, null)

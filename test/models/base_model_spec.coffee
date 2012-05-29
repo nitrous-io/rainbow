@@ -102,8 +102,8 @@ describe 'BaseModel', ->
                 done()
 
           context 'when columns are specified', ->
-            it 'fetches a row with given id and returns a model object with specified attributes', (done) ->
-              BaseModel.findOne 'id = $1', [123], ['id', 'foo'], (err, model) ->
+            it 'fetches a row with given id and returns a model object with specified attributes + id', (done) ->
+              BaseModel.findOne 'id = $1', [123], ['foo'], (err, model) ->
                 model.should.be.an.instanceof BaseModel
                 model.id.should.equal 123
                 model.foo.should.equal 'test'

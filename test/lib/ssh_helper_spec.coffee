@@ -80,6 +80,7 @@ describe 'SSHHelper', ->
           sshArgs.should.match /-o StrictHostKeyChecking=no/
           sshArgs.should.match /-o PubkeyAuthentication=yes/
           sshArgs.should.match /-o PasswordAuthentication=no/
+          sshArgs.should.match /-o LogLevel=FATAL/
           sshArgs.should.match /-p 2222/
           sshArgs.should.match /peter@localhost/
 

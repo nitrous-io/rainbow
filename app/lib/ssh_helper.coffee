@@ -21,6 +21,7 @@ module.exports = class SSHHelper
           '-o', 'StrictHostKeyChecking=no'
           '-o', 'PubkeyAuthentication=yes'
           '-o', 'PasswordAuthentication=no'
+          '-o', 'LogLevel=FATAL'
           '-p', "#{@port}"
           "#{@user}@#{@host}"
         ]

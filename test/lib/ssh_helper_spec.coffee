@@ -84,12 +84,21 @@ describe 'SSHHelper', ->
           sshArgs.should.match /-p 2222/
           sshArgs.should.match /peter@localhost/
 
-        it 'makes a callback with a function that deletes the key file as the second argument', (done) ->
-          cbSpy.called.should.be.true
-          cbSpy.args[0][2] ->
-            fs.unlink.called.should.be.true
-            fs.unlink.args[0][0].should.equal '/tmp/tmpfile'
-            done()
+        describe 'deleteKeyFile function', ->
+          context 'with a callback', ->
+            it 'deletes the temp key file and then calls the callback', (done) ->
+              cbSpy.called.should.be.true
+              cbSpy.args[0][2] ->
+                fs.unlink.called.should.be.true
+                fs.unlink.args[0][0].should.equal '/tmp/tmpfile'
+                done()
+
+          context 'without a callback', ->
+            it 'deletes the temp key file', ->
+              cbSpy.called.should.be.true
+              cbSpy.args[0][2]()
+              fs.unlink.called.should.be.true
+              fs.unlink.args[0][0].should.equal '/tmp/tmpfile'
 
   describe '#execCommand', ->
     err = cbSpy = null

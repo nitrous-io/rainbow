@@ -27,7 +27,7 @@ module.exports = class SSHHelper
         ]
         deleteKeyFile = (callback) ->
           fs.unlink path, ->
-            callback()
+            callback?()
         callback(null, sshArgs, deleteKeyFile)
 
   execCommand: (command, callback) -> # callback(err, stdout, stderr)

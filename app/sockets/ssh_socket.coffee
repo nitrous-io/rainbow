@@ -15,7 +15,6 @@ module.exports = class SSHSocket
     @socket.on 'disconnect', this.onDisconnect
 
   onStart: (boxId) =>
-    aio.log "onStart(#{boxId})"
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
       if err
         @socket.emit('start', err.toString())
@@ -58,34 +57,28 @@ module.exports = class SSHSocket
         callback(null)
 
   onData: (data) =>
-    aio.log 'onData'
     return unless @pty
     @pty.write(data)
 
   onResize: (width, height) =>
-    aio.log "onResize(#{width}, #{height})"
     return unless @pty
     @pty.resize(width, height)
 
   onKill: =>
-    aio.log 'onKill'
     return unless @pty
     @pty.destroy()
     delete @pty
 
   onDisconnect: =>
-    aio.log 'onDisconnect'
     this.onKill()
     delete @socket
     delete @box
     delete @user
 
   onPTYData: (data) =>
-    aio.log 'onPTYData'
     @socket?.emit('d', data)
 
   onPTYClose: (hadError) =>
-    aio.log "onPTYClose(#{hadError})"
     delete @pty
     @socket?.emit('close')
 

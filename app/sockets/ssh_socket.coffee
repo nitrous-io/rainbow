@@ -49,7 +49,11 @@ module.exports = class SSHSocket
         if err
           callback(err)
           return
-        @pty = pty.spawn '/usr/bin/ssh', sshArgs
+        try
+          @pty = pty.spawn '/usr/bin/ssh', sshArgs
+        catch err
+          callback(err.toString())
+          return
         @pty.once 'data', ->
           deleteKeyFile()
         @pty.on 'data', this.onPTYData

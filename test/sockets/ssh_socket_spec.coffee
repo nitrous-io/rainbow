@@ -243,42 +243,63 @@ describe 'SSHSocket', ->
         it 'calls callback with error', ->
           cbSpy.calledWith(error).should.be.true
 
-      context 'when writing keypair to the temp file succeds', ->
-        deleteKeyFileSpy = ptySpy = null
+      context 'when writing keypair to the temp file succeeds', ->
+        deleteKeyFileSpy = null
 
         beforeEach ->
-          deleteKeyFileSpy = sinon.spy()
-          ptySpy =
-            once: sinon.spy()
-            on: sinon.spy()
+          deleteKeyFileSpy = sinon.spy (cb) -> cb?()
           SSHHelper::writeKeyFile.callsArgWith(0, null, ['-sshargs'], deleteKeyFileSpy)
-          sinon.stub pty, 'spawn', (cmd, args) ->
-            cmd.should.equal '/usr/bin/ssh'
-            args.should.eql ['-sshargs']
-            ptySpy
-          doAction()
 
-        afterEach ->
-          pty.spawn.restore()
+        context 'when spawning a new pty fails with exception', ->
+          beforeEach ->
+            error = new Error
+            sinon.stub pty, 'spawn', (cmd, args) ->
+              throw new Error('pty error')
+            doAction()
 
-        it 'calls callback with no error', ->
-          cbSpy.calledWith(null).should.be.true
+          afterEach ->
+            pty.spawn.restore()
 
-        describe 'pty events', ->
-          context "the first time 'data' event is received", ->
-            it 'deletes they key file', ->
-              ptySpy.once.calledWith('data').should.be.true
-              deleteKeyFileSpy.called.should.be.false
-              ptySpy.once.args[0][1]()
-              deleteKeyFileSpy.called.should.be.true
+          it 'deletes they key file', ->
+            deleteKeyFileSpy.called.should.be.true
 
-          context 'data', ->
-            it 'is handled by #onPTYData', ->
-              ptySpy.on.calledWith('data', sshSocket.onPTYData).should.be.true
+          it 'calls callback with error', ->
+            cbSpy.calledWith(error).should.be.true
 
-          context 'close', ->
-            it 'is handled by #onPTYData', ->
-              ptySpy.on.calledWith('close', sshSocket.onPTYClose).should.be.true
+        context 'when spawning a new pty succeeds', ->
+          ptySpy = null
+
+          beforeEach ->
+            ptySpy =
+              once: sinon.spy()
+              on: sinon.spy()
+            sinon.stub pty, 'spawn', (cmd, args) ->
+              cmd.should.equal '/usr/bin/ssh'
+              args.should.eql ['-sshargs']
+              ptySpy
+            doAction()
+
+          afterEach ->
+            pty.spawn.restore()
+
+          it 'calls callback with no error', ->
+            cbSpy.calledWith(null).should.be.true
+
+          describe 'pty events', ->
+            context "the first time 'data' event is received", ->
+              it 'deletes they key file', ->
+                ptySpy.once.calledWith('data').should.be.true
+                deleteKeyFileSpy.called.should.be.false
+                ptySpy.once.args[0][1]()
+                deleteKeyFileSpy.called.should.be.true
+
+            context 'data', ->
+              it 'is handled by #onPTYData', ->
+                ptySpy.on.calledWith('data', sshSocket.onPTYData).should.be.true
+
+            context 'close', ->
+              it 'is handled by #onPTYData', ->
+                ptySpy.on.calledWith('close', sshSocket.onPTYClose).should.be.true
 
   describe '#onData', ->
     context 'when a pty session does not exist', ->

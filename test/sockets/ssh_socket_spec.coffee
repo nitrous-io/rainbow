@@ -1,6 +1,6 @@
 SSHSocket = require '../../app/sockets/ssh_socket'
 FakeSocketIO = require '../support/fake_socket_io'
-User = require '../../app/models/user'
+BaseSocket = require '../../app/sockets/base_socket'
 Box = require '../../app/models/box'
 KeyPair = require '../../app/models/key_pair'
 SSHHelper = require '../../app/lib/ssh_helper'
@@ -13,87 +13,8 @@ describe 'SSHSocket', ->
     io = new FakeSocketIO
     sshSocket = new SSHSocket(io.socket)
 
-  describe '.create', ->
-    it 'is a simple factory method that creates a new SSHSocket instance', ->
-      sshSocket = SSHSocket.create(io.socket)
-      sshSocket.should.be.instanceof SSHSocket
-
-  describe '.init', ->
-    beforeEach ->
-      SSHSocket.init(io)
-
-    it 'sets a namespace', ->
-      io.namespaces.should.have.property '/ws/ssh'
-
-    it 'sets SSHSocket.authorize as the authorization handler', ->
-      io.of('/ws/ssh').authorizationHandler.should.equal SSHSocket.authorize
-
-    context 'on connection', ->
-      beforeEach ->
-        sinon.stub SSHSocket, 'create'
-
-      afterEach ->
-        SSHSocket.create.restore()
-
-      it 'initializes a new SSHSocket object', ->
-        io.emit 'connection', io.socket
-        SSHSocket.create.calledWith(io.socket).should.be.true
-
-  describe '.authorize', ->
-    handshake = accept = null
-
-    beforeEach ->
-      accept = sinon.spy()
-
-    context 'when the cookie is missing', ->
-      beforeEach ->
-        handshake = { headers: { cookie: null } }
-        SSHSocket.authorize(handshake, accept)
-
-      it 'calls accept with error and false', ->
-        accept.called.should.be.true
-        accept.args[0][0].should.match /cookie missing/
-        accept.args[0][1].should.be.false
-
-    context 'when the cookie is present', ->
-      beforeEach ->
-        handshake = { headers: { cookie: '_aio_session=SESSION_DATA' } }
-
-      context 'when the user session fails verfication', ->
-        beforeEach ->
-          sinon.stub User, 'verifyUserSession', (session, cb) ->
-            session.should.equal 'SESSION_DATA'
-            cb(new Error, null)
-          SSHSocket.authorize(handshake, accept)
-
-        afterEach ->
-          User.verifyUserSession.restore()
-
-        it 'calls accept with error and false', ->
-          accept.called.should.be.true
-          accept.args[0][0].should.match /invalid user session/
-          accept.args[0][1].should.be.false
-
-      context 'when the user session is verified', ->
-        user = null
-
-        beforeEach ->
-          user = new User
-          sinon.stub User, 'verifyUserSession', (session, cb) ->
-            session.should.equal 'SESSION_DATA'
-            cb(null, user)
-          SSHSocket.authorize(handshake, accept)
-
-        afterEach ->
-          User.verifyUserSession.restore()
-
-        it 'calls accept with no error and true', ->
-          accept.called.should.be.true
-          expect(accept.args[0][0]).to.eql null
-          accept.args[0][1].should.be.true
-
-        it 'assigns the user to handshake.data.user', ->
-          handshake.data.user.should.equal user
+  it 'is a subclass of BaseSocket', ->
+    sshSocket.should.be.instanceof BaseSocket
 
   describe 'socket protocol', ->
     context 'start', ->

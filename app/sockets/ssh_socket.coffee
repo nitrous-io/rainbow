@@ -1,13 +1,11 @@
-aio = require '../lib/aio'
-parseCookie = require('connect').utils.parseCookie
-User = require '../models/user'
+BaseSocket = require './base_socket'
 Box = require '../models/box'
 SSHHelper = require '../lib/ssh_helper'
 pty = require 'pty.js'
 
-module.exports = class SSHSocket
+module.exports = class SSHSocket extends BaseSocket
   constructor: (@socket) ->
-    @user = @socket.handshake.data.user
+    super(@socket)
     @socket.on 'start', this.onStart
     @socket.on 'd', this.onData
     @socket.on 'r', this.onResize
@@ -52,7 +50,8 @@ module.exports = class SSHSocket
         try
           @pty = pty.spawn '/usr/bin/ssh', sshArgs
         catch err
-          callback(err.toString())
+          deleteKeyFile ->
+            callback(err)
           return
         @pty.once 'data', ->
           deleteKeyFile()
@@ -85,26 +84,4 @@ module.exports = class SSHSocket
   onPTYClose: (hadError) =>
     delete @pty
     @socket?.emit('close')
-
-SSHSocket.create = (socket) ->
-  new SSHSocket(socket)
-
-SSHSocket.init = (io) ->
-  io.of('/ws/ssh')
-    .authorization(SSHSocket.authorize)
-    .on 'connection', (socket) ->
-      SSHSocket.create(socket)
-
-SSHSocket.authorize = (handshake, accept) ->
-  unless handshake.headers.cookie
-    accept('cookie missing', false)
-    return
-  data = handshake.data ||= {}
-  data.cookies = parseCookie(handshake.headers.cookie)
-  User.verifyUserSession data.cookies['_aio_session'], (err, user) ->
-    if err || !user
-      accept('invalid user session', false)
-      return
-    data.user = user
-    accept(null, true)
 

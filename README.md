@@ -6,3 +6,8 @@
 
 See `.env-example` file.
 
+### npm stuff
+
+npm install
+npm install ws --ws:native
+npm prune

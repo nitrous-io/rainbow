@@ -36,6 +36,7 @@ if require.main == module || require.main.filename.match /boot\.js/
   socketIO = require 'socket.io'
   io = socketIO.listen(app)
   io.set 'log level', 1
+  io.set 'match origin protocol', true
   require('./app/sockets/ssh_socket').init(io, '/ws/ssh')
   require('./app/sockets/fs_socket' ).init(io, '/ws/fs')
 

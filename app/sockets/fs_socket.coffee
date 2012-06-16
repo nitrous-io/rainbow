@@ -35,45 +35,45 @@ module.exports = class FSSocket extends BaseSocket
         @sshHelper = new SSHHelper('action', @box.host, @box.port, keyPair.private_key)
         @socket.emit('start')
 
-  onList: (path) =>
+  onList: (path, cid) =>
     @sshHelper.execCommand "ls -1bF ~/#{FSSocket.escape(path)}", (err, stdout, stderr) =>
       if err
-        @socket.emit('list', err.toString(), path)
+        @socket.emit('list', err.toString(), path, cid)
         return
       files = stdout.slice(0, -1).split("\n")
-      @socket.emit('list', null, path, files)
+      @socket.emit('list', null, path, cid, files)
 
-  onNew: (path) =>
+  onNew: (path, cid) =>
     if path.match /\/$/
       cmd = "mkdir -p ~/#{FSSocket.escape(path)}"
     else
       cmd = "touch ~/#{FSSocket.escape(path)}"
     @sshHelper.execCommand cmd, (err, stdout, stderr) =>
       if err
-        @socket.emit('new', err.toString(), path)
+        @socket.emit('new', err.toString(), path, cid)
         return
-      @socket.emit('new', null, path)
+      @socket.emit('new', null, path, cid)
 
-  onRead: (path) =>
+  onRead: (path, cid) =>
     @sshHelper.execCommand "cat ~/#{FSSocket.escape(path)}", (err, stdout, stderr) =>
       if err
-        @socket.emit('read', err.toString(), path)
+        @socket.emit('read', err.toString(), path, cid)
         return
-      @socket.emit('read', null, path, stdout.slice(0, -1))
+      @socket.emit('read', null, path, cid, stdout.slice(0, -1))
 
-  onWrite: (path, data) =>
+  onWrite: (path, cid, data) =>
     @sshHelper.execCommand "echo -e #{FSSocket.escape(data)} > ~/#{FSSocket.escape(path)}", (err, stdout, stderr) =>
       if err
-        @socket.emit('write', err.toString(), path)
+        @socket.emit('write', err.toString(), path, cid)
         return
-      @socket.emit('write', null, path)
+      @socket.emit('write', null, path, cid)
 
-  onDelete: (path) =>
+  onDelete: (path, cid) =>
     @sshHelper.execCommand "rm -rf ~/#{FSSocket.escape(path)}", (err, stdout, stderr) =>
       if err
-        @socket.emit('delete', err.toString(), path)
+        @socket.emit('delete', err.toString(), path, cid)
         return
-      @socket.emit('delete', null, path)
+      @socket.emit('delete', null, path, cid)
 
 FSSocket.escape = (string) ->
   if typeof string == 'string'

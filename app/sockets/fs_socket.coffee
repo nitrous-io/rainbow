@@ -36,7 +36,7 @@ module.exports = class FSSocket extends BaseSocket
         @socket.emit('start')
 
   onList: (path, cid) =>
-    @sshHelper.execCommand "ls -1bF ~/#{FSSocket.escape(path)}", (err, stdout, stderr) =>
+    @sshHelper.execCommand "ls -1bp ~/#{FSSocket.escape(path)}", (err, stdout, stderr) =>
       if err
         @socket.emit('list', err.toString(), path, cid)
         return

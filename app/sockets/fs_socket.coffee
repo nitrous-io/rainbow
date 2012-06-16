@@ -1,6 +1,7 @@
 BaseSocket = require './base_socket'
 Box = require '../models/box'
 SSHHelper = require '../lib/ssh_helper'
+_ = require 'underscore'
 
 module.exports = class FSSocket extends BaseSocket
   constructor: (@socket) ->
@@ -40,7 +41,13 @@ module.exports = class FSSocket extends BaseSocket
       if err
         @socket.emit('list', err.toString(), path, cid)
         return
-      files = stdout.slice(0, -1).split("\n")
+      stdout = stdout.trim()
+      files = if stdout.length == 0
+        []
+      else
+        stdout.replace(/\\ /g, ' ').split("\n")
+      console.log stdout
+      files = _.filter(files, (file) -> file.indexOf("\\") == -1)
       @socket.emit('list', null, path, cid, files)
 
   onNew: (path, cid) =>

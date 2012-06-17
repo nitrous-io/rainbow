@@ -63,7 +63,8 @@ module.exports = class FSSocket extends BaseSocket
       @socket.emit('new', null, path, cid)
 
   onRead: (path, cid) =>
-    @sshHelper?.execCommand "cat ~/#{FSSocket.escape(path)}", (err, stdout, stderr) =>
+    escapedPath = FSSocket.escape(path)
+    @sshHelper?.execCommand "(file ~/#{escapedPath} | grep -q 'empty\\|text') && (cat ~/#{escapedPath})", (err, stdout, stderr) =>
       if err
         @socket.emit('read', err.toString(), path, cid)
         return

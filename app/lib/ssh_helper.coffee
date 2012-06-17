@@ -35,7 +35,7 @@ module.exports = class SSHHelper
       if err
         callback(err)
         return
-      sshArgs.push('LC_ALL=en_US.UTF-8')
+      sshArgs.push('LC_ALL=en_US.UTF-8;')
       sshArgs.push(command)
       childProcess.execFile '/usr/bin/ssh', sshArgs, timeout: 20000, (err, stdout, stderr) ->
         deleteKeyFile ->

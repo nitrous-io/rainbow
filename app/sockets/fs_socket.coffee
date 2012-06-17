@@ -42,11 +42,12 @@ module.exports = class FSSocket extends BaseSocket
         @socket.emit('list', err.toString(), path, cid)
         return
       stdout = stdout.trim()
+
       files = if stdout.length == 0
         []
       else
         stdout.replace(/\\ /g, ' ').split("\n")
-      console.log stdout
+
       files = _.filter(files, (file) -> file.indexOf("\\") == -1)
       @socket.emit('list', null, path, cid, files)
 

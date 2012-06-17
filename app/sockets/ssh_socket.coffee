@@ -34,7 +34,7 @@ module.exports = class SSHSocket extends BaseSocket
         @socket.emit('start')
 
   connectToSSH: (callback) ->
-    @box.findKeyPair (err, keyPair) =>
+    @box?.findKeyPair (err, keyPair) =>
       if err
         callback(err)
         return
@@ -60,16 +60,13 @@ module.exports = class SSHSocket extends BaseSocket
         callback(null)
 
   onData: (data) =>
-    return unless @pty
-    @pty.write(data)
+    @pty?.write(data)
 
   onResize: (width, height) =>
-    return unless @pty
-    @pty.resize(width, height)
+    @pty?.resize(width, height)
 
   onKill: =>
-    return unless @pty
-    @pty.destroy()
+    @pty?.destroy()
     delete @pty
 
   onDisconnect: =>

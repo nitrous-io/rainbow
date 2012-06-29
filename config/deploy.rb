@@ -10,7 +10,7 @@ set :use_sudo, false
 
 default_run_options[:pty] = true
 
-set :host, "dominus-apse-1.action.io"
+set :host, "dominus-usw-1.action.io"
 role :web, host
 role :app, host
 

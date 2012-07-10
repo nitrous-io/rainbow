@@ -134,7 +134,7 @@ describe 'SSHHelper', ->
       it 'executes a given command', ->
         childProcess.execFile.called.should.be.true
         childProcess.execFile.args[0][0].should.equal '/usr/bin/ssh'
-        childProcess.execFile.args[0][1].should.eql ['sshArg1', 'sshArg2', 'LC_ALL=en_US.UTF-8', 'ls']
+        childProcess.execFile.args[0][1].should.eql ['sshArg1', 'sshArg2', 'export LC_ALL=en_US.UTF-8; ls']
         childProcess.execFile.args[0][2].should.eql { timeout: 20000 }
 
       it 'calls deleteKeyFile function', ->

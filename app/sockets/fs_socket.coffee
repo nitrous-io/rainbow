@@ -52,18 +52,18 @@ module.exports = class FSSocket extends BaseSocket
       files = _.filter(files, (file) -> file.indexOf("\\") == -1)
       @socket.emit('list', null, path, cid, files)
 
-  onNew: (path, cid) =>
+  onNew: (path, content, callbackId) =>
     escapedPath = FSSocket.escape(path)
     escapedContent = FSSocket.escape(content)
     if path.match /\/$/
       cmd = "mkdir -p ~/#{escapedPath}"
     else
-      cmd = "touch ~/#{escapedPath}"
+      cmd = "if [ -d ~/#{escapedPath} ]; then echo 'aio_folder_exists' > /dev/stderr; exit 1; elif [ -e ~/#{escapedPath} ]; then echo 'aio_file_exists' > /dev/stderr; exit 1; else echo #{escapedContent} > ~/#{escapedPath}; fi"
     @sshHelper?.execCommand cmd, (err, stdout, stderr) =>
       if err
-        @socket.emit('new', err.toString(), path, cid)
+        @socket.emit('new', err.toString(), path, callbackId)
         return
-      @socket.emit('new', null, path, cid)
+      @socket.emit('new', null, path, callbackId)
 
   onRead: (path, cid) =>
     escapedPath = FSSocket.escape(path)

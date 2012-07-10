@@ -37,7 +37,8 @@ module.exports = class FSSocket extends BaseSocket
         @socket.emit('start')
 
   onList: (path, cid) =>
-    @sshHelper?.execCommand "ls -1bp ~/#{FSSocket.escape(path)}", (err, stdout, stderr) =>
+    escapedPath = FSSocket.escape(path)
+    @sshHelper?.execCommand "ls -1bp ~/#{escapedPath}", (err, stdout, stderr) =>
       if err
         @socket.emit('list', err.toString(), path, cid)
         return
@@ -52,10 +53,12 @@ module.exports = class FSSocket extends BaseSocket
       @socket.emit('list', null, path, cid, files)
 
   onNew: (path, cid) =>
+    escapedPath = FSSocket.escape(path)
+    escapedContent = FSSocket.escape(content)
     if path.match /\/$/
-      cmd = "mkdir -p ~/#{FSSocket.escape(path)}"
+      cmd = "mkdir -p ~/#{escapedPath}"
     else
-      cmd = "touch ~/#{FSSocket.escape(path)}"
+      cmd = "touch ~/#{escapedPath}"
     @sshHelper?.execCommand cmd, (err, stdout, stderr) =>
       if err
         @socket.emit('new', err.toString(), path, cid)
@@ -70,15 +73,18 @@ module.exports = class FSSocket extends BaseSocket
         return
       @socket.emit('read', null, path, cid, stdout.slice(0, -1))
 
-  onWrite: (path, cid, data) =>
-    @sshHelper?.execCommand "echo -e #{FSSocket.escape(data)} > ~/#{FSSocket.escape(path)}", (err, stdout, stderr) =>
+  onWrite: (path, cid, content) =>
+    escapedPath = FSSocket.escape(path)
+    escapedContent = FSSocket.escape(content)
+    @sshHelper?.execCommand "echo #{escapedContent} > ~/#{escapedPath}", (err, stdout, stderr) =>
       if err
         @socket.emit('write', err.toString(), path, cid)
         return
       @socket.emit('write', null, path, cid)
 
   onDelete: (path, cid) =>
-    @sshHelper?.execCommand "rm -rf ~/#{FSSocket.escape(path)}", (err, stdout, stderr) =>
+    escapedPath = FSSocket.escape(path)
+    @sshHelper?.execCommand "rm -rf ~/#{escapedPath}", (err, stdout, stderr) =>
       if err
         @socket.emit('delete', err.toString(), path, cid)
         return

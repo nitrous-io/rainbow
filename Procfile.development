@@ -1,5 +1,0 @@
-node: node boot.js
-nginx: nginx -c /usr/local/etc/nginx/nginx.conf
-haproxy: haproxy -f /usr/local/etc/haproxy.conf
-stunnel: stunnel /usr/local/etc/stunnel/stunnel.conf
-

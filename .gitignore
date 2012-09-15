@@ -2,7 +2,6 @@
 lib-cov/
 tmp/
 pids/
-logs/
 results/
 node_modules/
 *.swp

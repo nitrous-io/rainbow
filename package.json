@@ -7,17 +7,18 @@
 , "main": "./app"
 , "dependencies": {
     "coffee-script"  : "1.3.x"
-  , "express"        : "2.5.x"
-  , "connect"        : "1.8.x"
+  , "express"        : "3.0.x"
+  , "connect"        : "2.4.x"
   , "async"          : "0.1.x"
   , "underscore"     : "1.3.x"
-  , "pg"             : "0.6.x"
+  , "pg"             : "0.8.x"
   , "tmp"            : "0.0.x"
   , "socket.io"      : "0.9.x"
   , "pty.js"         : "0.1.1"
+  , "winston"        : "0.6.x"
   }
 , "devDependencies": {
-    "mocha"        : "1.0.x"
+    "mocha"        : "1.3.x"
   , "should"       : "0.6.x"
   , "expect.js"    : "0.1.x"
   , "sinon"        : "1.3.x"
@@ -25,7 +26,7 @@
   , "factory-lady" : "0.1.x"
   , "jquery"       : "1.7.x"
   }
-, "engine": "node 0.6.x"
+, "engine": "node 0.8.x"
 , "scripts": {
     "test": "rake test"
   }

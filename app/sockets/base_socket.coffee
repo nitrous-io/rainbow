@@ -1,4 +1,4 @@
-parseCookie = require('connect').utils.parseCookie
+cookie = require 'cookie'
 User = require '../models/user'
 
 module.exports = class BaseSocket
@@ -19,7 +19,7 @@ BaseSocket.authorize = (handshake, accept) ->
     accept('cookie missing', false)
     return
   data = handshake.data ||= {}
-  data.cookies = parseCookie(handshake.headers.cookie)
+  data.cookies = cookie.parse handshake.headers.cookie
   User.verifyUserSession data.cookies['_aio_session'], (err, user) ->
     if err || !user
       accept('invalid user session', false)

@@ -3,8 +3,8 @@ BaseModel = require '../../app/models/base_model'
 
 describe 'KeyPair', ->
   it 'is a subclass of BaseModel', ->
-    (new KeyPair).should.be.an.instanceof BaseModel
+    expect(new KeyPair).to.be.an.instanceof BaseModel
 
   its 'tableName property is defined', ->
-    KeyPair.tableName.should.equal 'key_pairs'
+    expect(KeyPair.tableName).to.equal 'key_pairs'
 

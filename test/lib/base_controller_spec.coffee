@@ -4,7 +4,7 @@ Request  = http.IncomingMessage
 Response = http.ServerResponse
 
 describe 'BaseController', ->
-  [request, response, controller] = []
+  request = response = controller = null
 
   before ->
     request = new Request()
@@ -17,13 +17,13 @@ describe 'BaseController', ->
     request.query =
       hello: 'world'
       humty: 'dumty'
-    response = new Response(request)
-    controller = new BaseController(request, response)
+    response = new Response request
+    controller = new BaseController request, response
 
   it 'initializes properly', ->
-    controller.request.should.equal request
-    controller.response.should.equal response
-    controller.params.should.eql
+    expect(controller.request).to.equal request
+    expect(controller.response).to.equal response
+    expect(controller.params).to.deep.equal
       id: 'some-id'
       user_id: 'another-id'
       foo: 'bar'

@@ -7,7 +7,7 @@ describe 'SSHHelper', ->
   sshHelper = null
 
   beforeEach ->
-    sshHelper = new SSHHelper('peter', 'localhost', '2222', 'ssh-rsa AAAB3NzaC1yc2EAAA peter@kim')
+    sshHelper = new SSHHelper 'peter', 'localhost', '2222', 'ssh-rsa AAAB3NzaC1yc2EAAA peter@kim'
 
   describe '#writeKeyFile', ->
     err = cbSpy = null
@@ -18,13 +18,13 @@ describe 'SSHHelper', ->
         sinon.stub tmp, 'file', (cb) ->
           cb(err)
         cbSpy = sinon.spy()
-        sshHelper.writeKeyFile(cbSpy)
+        sshHelper.writeKeyFile cbSpy
 
       afterEach ->
         tmp.file.restore()
 
       it 'makes a callback with the error', ->
-        cbSpy.calledWith(err).should.be.true
+        expect(cbSpy).to.have.been.calledWith err
 
     context 'when temp file is successfully created', ->
       fakeFd = null
@@ -33,7 +33,7 @@ describe 'SSHHelper', ->
         err = new Error
         fakeFd = {}
         sinon.stub tmp, 'file', (cb) ->
-          cb(null, '/tmp/tmpfile', fakeFd)
+          cb null, '/tmp/tmpfile', fakeFd
         sinon.stub fs, 'unlink', (path, cb) ->
           cb()
 
@@ -44,61 +44,61 @@ describe 'SSHHelper', ->
       context 'when the key failed to be written to the temp file', ->
         beforeEach ->
           fs.write = sinon.stub fs, 'write', (fd, buf, offset, len, pos, cb) ->
-            fd.should.equal fakeFd
-            cb(err)
+            expect(fd).to.equal fakeFd
+            cb err
           cbSpy = sinon.spy()
-          sshHelper.writeKeyFile(cbSpy)
-          fs.write.called.should.be.true
+          sshHelper.writeKeyFile cbSpy
+          expect(fs.write).to.have.been.called
 
         afterEach ->
           fs.write.restore()
 
         it 'deletes the temp file', ->
-          fs.unlink.called.should.be.true
-          fs.unlink.args[0][0].should.equal '/tmp/tmpfile'
+          expect(fs.unlink).to.have.been.called
+          expect(fs.unlink.args[0][0]).to.equal '/tmp/tmpfile'
 
         it 'makes a callback with the error', ->
-          cbSpy.calledWith(err).should.be.true
+          expect(cbSpy).to.have.been.calledWith err
 
       context 'when the key is successfully written to the temp file', ->
         beforeEach ->
           fs.write = sinon.stub fs, 'write', (fd, buf, offset, len, pos, cb) ->
-            fd.should.equal fakeFd
+            expect(fd).to.equal fakeFd
             cb()
           cbSpy = sinon.spy()
-          sshHelper.writeKeyFile(cbSpy)
-          fs.write.called.should.be.true
+          sshHelper.writeKeyFile cbSpy
+          expect(fs.write).to.have.been.called
 
         afterEach ->
           fs.write.restore()
 
         it 'makes a callback with ssh arguments as the first argument', ->
-          cbSpy.called.should.be.true
-          sshArgs = cbSpy.args[0][1].join(' ')
-          sshArgs.should.match /^-i \/tmp\/tmpfile/
-          sshArgs.should.match /-o UserKnownHostsFile=\/dev\/null/
-          sshArgs.should.match /-o StrictHostKeyChecking=no/
-          sshArgs.should.match /-o PubkeyAuthentication=yes/
-          sshArgs.should.match /-o PasswordAuthentication=no/
-          sshArgs.should.match /-o LogLevel=FATAL/
-          sshArgs.should.match /-p 2222/
-          sshArgs.should.match /peter@localhost/
+          expect(cbSpy).to.have.been.called
+          sshArgs = cbSpy.args[0][1].join ' '
+          expect(sshArgs).to.match /^-i \/tmp\/tmpfile/
+          expect(sshArgs).to.match /-o UserKnownHostsFile=\/dev\/null/
+          expect(sshArgs).to.match /-o StrictHostKeyChecking=no/
+          expect(sshArgs).to.match /-o PubkeyAuthentication=yes/
+          expect(sshArgs).to.match /-o PasswordAuthentication=no/
+          expect(sshArgs).to.match /-o LogLevel=FATAL/
+          expect(sshArgs).to.match /-p 2222/
+          expect(sshArgs).to.match /peter@localhost/
 
         describe 'deleteKeyFile function', ->
           context 'with a callback', ->
             it 'deletes the temp key file and then calls the callback', (done) ->
-              cbSpy.called.should.be.true
+              expect(cbSpy).to.have.been.called
               cbSpy.args[0][2] ->
-                fs.unlink.called.should.be.true
-                fs.unlink.args[0][0].should.equal '/tmp/tmpfile'
+                expect(fs.unlink).to.have.been.called
+                expect(fs.unlink.args[0][0]).to.equal '/tmp/tmpfile'
                 done()
 
           context 'without a callback', ->
             it 'deletes the temp key file', ->
-              cbSpy.called.should.be.true
+              expect(cbSpy).to.have.been.called
               cbSpy.args[0][2]()
-              fs.unlink.called.should.be.true
-              fs.unlink.args[0][0].should.equal '/tmp/tmpfile'
+              expect(fs.unlink).to.have.been.called
+              expect(fs.unlink.args[0][0]).to.equal '/tmp/tmpfile'
 
   describe '#execCommand', ->
     err = cbSpy = null
@@ -109,11 +109,11 @@ describe 'SSHHelper', ->
         cbSpy = sinon.spy()
         sinon.stub sshHelper, 'writeKeyFile', (callback) ->
           callback(err)
-        sshHelper.execCommand('ls', cbSpy)
-        sshHelper.writeKeyFile.called.should.be.true
+        sshHelper.execCommand 'ls', cbSpy
+        expect(sshHelper.writeKeyFile).to.have.been.called
 
       it 'makes a callback with the error', ->
-        cbSpy.calledWith(err).should.be.true
+        expect(cbSpy).to.have.been.calledWith err
 
     context 'when writeKeyFile succeeds', ->
       deleteKeyFileSpy = null
@@ -122,24 +122,24 @@ describe 'SSHHelper', ->
         deleteKeyFileSpy = sinon.spy (cb) -> cb()
         cbSpy = sinon.spy()
         sinon.stub sshHelper, 'writeKeyFile', (callback) ->
-          callback(null, ['sshArg1', 'sshArg2'], deleteKeyFileSpy)
+          callback null, ['sshArg1', 'sshArg2'], deleteKeyFileSpy
         sinon.stub childProcess, 'execFile', (file, args, opts, cb) ->
-          cb(err, 'fake stdout', 'fake stderr')
-        sshHelper.execCommand('ls', cbSpy)
-        sshHelper.writeKeyFile.called.should.be.true
+          cb err, 'fake stdout', 'fake stderr'
+        sshHelper.execCommand 'ls', cbSpy
+        expect(sshHelper.writeKeyFile).to.have.been.called
 
       afterEach ->
         childProcess.execFile.restore()
 
       it 'executes a given command', ->
-        childProcess.execFile.called.should.be.true
-        childProcess.execFile.args[0][0].should.equal '/usr/bin/ssh'
-        childProcess.execFile.args[0][1].should.eql ['sshArg1', 'sshArg2', 'export LC_ALL=en_US.UTF-8; ls']
-        childProcess.execFile.args[0][2].should.eql { timeout: 20000 }
+        expect(childProcess.execFile).to.have.been.called
+        expect(childProcess.execFile.args[0][0]).to.equal '/usr/bin/ssh'
+        expect(childProcess.execFile.args[0][1]).to.deep.equal ['sshArg1', 'sshArg2', 'export LC_ALL=en_US.UTF-8; ls']
+        expect(childProcess.execFile.args[0][2]).to.deep.equal { timeout: 20000 }
 
       it 'calls deleteKeyFile function', ->
-        deleteKeyFileSpy.called.should.be.true
+        expect(deleteKeyFileSpy).to.have.been.called
 
       it 'makes a callback with given err, stdout, and stderr', ->
-        cbSpy.calledWith(err, 'fake stdout', 'fake stderr').should.be.true
+        expect(cbSpy).to.have.been.calledWith err, 'fake stdout', 'fake stderr'
 

@@ -1,7 +1,7 @@
 MessageVerifier = require '../../app/lib/message_verifier'
 
 describe 'MessageVerifier', ->
-  [verifier, message] = []
+  verifier = message = null
 
   beforeEach ->
     verifier = new MessageVerifier('foobar')
@@ -10,24 +10,24 @@ describe 'MessageVerifier', ->
   describe '#verify', ->
     context 'valid signed message', ->
       it 'returns the original object', ->
-        verifier.verify(message).should.eql ['foo', 'bar']
+        expect(verifier.verify message).to.deep.equal ['foo', 'bar']
 
     context 'invalid signed message', ->
       beforeEach ->
         message = 'WyJmb28iLCJiYXIiXQ==--236i789834569723950781239048710293471024'
 
       it 'returns null', ->
-        expect(verifier.verify(message)).to.be null
+        expect(verifier.verify message).to.be.null
 
     context 'empty message', ->
       it 'returns null', ->
-        expect(verifier.verify('')).to.be null
+        expect(verifier.verify '').to.be.null
 
     context 'null message', ->
       it 'returns null', ->
-        expect(verifier.verify(null)).to.be null
+        expect(verifier.verify null).to.be.null
 
   describe '#generate', ->
     it 'generates signed message', ->
-      verifier.generate(['foo', 'bar']).should.eql message
+      expect(verifier.generate ['foo', 'bar']).to.equal message
 

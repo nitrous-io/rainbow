@@ -12,18 +12,18 @@ describe 'BaseSocket', ->
   describe '.create', ->
     it 'is a simple factory method that creates a new BaseSocket instance', ->
       sshSocket = BaseSocket.create(io.socket)
-      sshSocket.should.be.instanceof BaseSocket
-      sshSocket.socket.should.equal io.socket
+      expect(sshSocket).to.be.instanceof BaseSocket
+      expect(sshSocket.socket).to.equal io.socket
 
   describe '.init', ->
     beforeEach ->
       BaseSocket.init(io, '/ws/base')
 
     it 'sets a namespace', ->
-      io.namespaces.should.have.property '/ws/base'
+      expect(io.namespaces).to.have.property '/ws/base'
 
     it 'sets BaseSocket.authorize as the authorization handler', ->
-      io.of('/ws/base').authorizationHandler.should.equal BaseSocket.authorize
+      expect(io.of('/ws/base').authorizationHandler).to.equal BaseSocket.authorize
 
     context 'on connection', ->
       beforeEach ->
@@ -34,7 +34,7 @@ describe 'BaseSocket', ->
 
       it 'initializes a new BaseSocket object', ->
         io.emit 'connection', io.socket
-        BaseSocket.create.calledWith(io.socket).should.be.true
+        expect(BaseSocket.create).to.have.been.calledWith io.socket
 
   describe '.authorize', ->
     handshake = accept = null
@@ -48,9 +48,9 @@ describe 'BaseSocket', ->
         BaseSocket.authorize(handshake, accept)
 
       it 'calls accept with error and false', ->
-        accept.called.should.be.true
-        accept.args[0][0].should.match /cookie missing/
-        accept.args[0][1].should.be.false
+        expect(accept).to.have.been.called
+        expect(accept.args[0][0]).to.match /cookie missing/
+        expect(accept.args[0][1]).to.be.false
 
     context 'when the cookie is present', ->
       beforeEach ->
@@ -59,17 +59,17 @@ describe 'BaseSocket', ->
       context 'when the user session fails verfication', ->
         beforeEach ->
           sinon.stub User, 'verifyUserSession', (session, cb) ->
-            session.should.equal 'SESSION_DATA'
-            cb(new Error, null)
-          BaseSocket.authorize(handshake, accept)
+            expect(session).to.equal 'SESSION_DATA'
+            cb new Error, null
+          BaseSocket.authorize handshake, accept
 
         afterEach ->
           User.verifyUserSession.restore()
 
         it 'calls accept with error and false', ->
-          accept.called.should.be.true
-          accept.args[0][0].should.match /invalid user session/
-          accept.args[0][1].should.be.false
+          expect(accept).to.have.been.called
+          expect(accept.args[0][0]).to.match /invalid user session/
+          expect(accept.args[0][1]).to.be.false
 
       context 'when the user session is verified', ->
         user = null
@@ -77,19 +77,18 @@ describe 'BaseSocket', ->
         beforeEach ->
           user = new User
           sinon.stub User, 'verifyUserSession', (session, cb) ->
-            session.should.equal 'SESSION_DATA'
-            cb(null, user)
-          BaseSocket.authorize(handshake, accept)
+            expect(session).to.equal 'SESSION_DATA'
+            cb null, user
+          BaseSocket.authorize handshake, accept
 
         afterEach ->
           User.verifyUserSession.restore()
 
         it 'calls accept with no error and true', ->
-          accept.called.should.be.true
-          expect(accept.args[0][0]).to.eql null
-          accept.args[0][1].should.be.true
+          expect(accept).to.have.been.called
+          expect(accept.args[0][0]).to.be.null
+          expect(accept.args[0][1]).to.be.true
 
         it 'assigns the user to handshake.data.user', ->
-          handshake.data.user.should.equal user
-
+          expect(handshake.data.user).to.equal user
 

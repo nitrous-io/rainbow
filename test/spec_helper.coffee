@@ -8,13 +8,15 @@ global.its = global.it
 global.xits = global.xit
 
 global.sinon = require 'sinon'
-global.assert = require 'should'
-global.expect = require 'expect.js'
+global.chai = require 'chai'
+global.request = require 'supertest'
+sinonChai = require 'sinon-chai'
+global.should = global.chai.should()
+global.expect = global.chai.expect
+global.assert = global.chai.assert
+global.chai.use sinonChai
 
-require './support/include_object_matcher'
-
-global.app = require '../app'
-global.app.listen 8888
+global.app = require('../app').app
 
 global.Factory = require './factories'
 

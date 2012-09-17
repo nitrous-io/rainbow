@@ -6,14 +6,14 @@ Response = http.ServerResponse
 async = require 'async'
 
 describe 'ApplicationController', ->
-  [request, response, controller] = []
+  request = response = controller = null
 
   beforeEach (done) ->
     request = new Request()
-    response = new Response(request)
-    controller = new ApplicationController(request, response)
+    response = new Response request
+    controller = new ApplicationController request, response
     done()
 
   it 'is a subclass of BaseController', ->
-    (controller instanceof BaseController).should.be.true
+    expect(controller).to.be.an.instanceof BaseController
 

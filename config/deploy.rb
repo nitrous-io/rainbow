@@ -1,16 +1,22 @@
 set :application, "action-box-server"
-set :repository,  "git@github.com:petejkim/#{application}.git"
+set :repository,  "git@github.com:action-io/#{application}.git"
 
 set :scm, :git
 set :deploy_via, :remote_cache
 set :branch, :master
-set :user, 'action'
+set :user, 'dominus'
 set :deploy_to, "/var/apps/#{application}"
 set :use_sudo, false
+set :git_enable_submodules, 1
+
+set :default_environment, {
+  'PATH' =>  "$HOME/.nvm/v0.8.9/bin:$PATH"
+}
 
 default_run_options[:pty] = true
+default_run_options[:shell] = '/bin/bash --login'
 
-set :host, "dominus-usw-1.action.io"
+set :host, "dominus-apse-1.action.io"
 role :web, host
 role :app, host
 
@@ -31,15 +37,15 @@ namespace :deploy do
   end
 
   task :start, :roles => :app do
-    run "sudo start #{application}"
+    run "cd #{latest_release} && export $(cat .env) && forever start boot.js"
   end
 
   task :stop, :roles => :app do
-    run "sudo stop #{application}"
+    run "cd #{latest_release} && export $(cat .env) && forever stop boot.js"
   end
 
   task :restart, :roles => :app do
-    start
+    run "cd #{latest_release} && export $(cat .env) && forever stop boot.js && forever start boot.js"
   end
 
   task :npm, :roles => :app do
@@ -49,13 +55,13 @@ namespace :deploy do
       npm install &&
       npm install ws --ws:native &&
       npm prune &&
-      cp #{shared_path}/database.coffee #{latest_release}/config/
+      cp #{shared_path}/config/.env #{latest_release}/ &&
+      cp #{shared_path}/config/database.coffee #{latest_release}/config/
     CMD
   end
 
   task :restart, :roles => :app, :except => { :no_release => true } do
-    run "if [ -f /var/run/action-box-server.pid ]; then sudo stop #{application}; fi"
-    run "sudo start #{application}"
+    run "cd #{latest_release} && export $(cat .env) && forever stop boot.js && forever start boot.js"
   end
 end
 

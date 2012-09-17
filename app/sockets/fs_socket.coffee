@@ -36,11 +36,11 @@ module.exports = class FSSocket extends BaseSocket
         @sshHelper = new SSHHelper('action', @box.host, @box.port, keyPair.private_key)
         @socket.emit('start')
 
-  onList: (path, vmid) =>
+  onList: (path) =>
     escapedPath = FSSocket.escape(path)
     @sshHelper?.execCommand "ls -1bp ~/#{escapedPath}", (err, stdout, stderr) =>
       if err
-        @socket.emit('list', err.toString(), path, vmid)
+        @socket.emit('list', err.toString(), path)
         return
       stdout = stdout.trim()
 
@@ -50,7 +50,7 @@ module.exports = class FSSocket extends BaseSocket
         stdout.replace(/\\ /g, ' ').split("\n")
 
       files = _.filter(files, (file) -> file.indexOf("\\") == -1)
-      @socket.emit('list', null, path, vmid, files)
+      @socket.emit('list', null, path, files)
 
   onNew: (path, content, callbackId) =>
     escapedPath = FSSocket.escape(path)
@@ -65,30 +65,30 @@ module.exports = class FSSocket extends BaseSocket
         return
       @socket.emit('new', null, path, callbackId)
 
-  onRead: (path, vmid) =>
+  onRead: (path) =>
     escapedPath = FSSocket.escape(path)
     @sshHelper?.execCommand "if (file ~/#{escapedPath} | grep -q 'empty\\|text\\|very\\ short'); then cat ~/#{escapedPath}; else echo -n 'aio_not_text_file' > /dev/stderr; exit 1; fi", (err, stdout, stderr) =>
       if err
-        @socket.emit('read', err.toString(), path, vmid)
+        @socket.emit('read', err.toString(), path)
         return
-      @socket.emit('read', null, path, vmid, stdout.slice(0, -1))
+      @socket.emit('read', null, path, stdout.slice(0, -1))
 
-  onWrite: (path, vmid, content) =>
+  onWrite: (path, content) =>
     escapedPath = FSSocket.escape(path)
     escapedContent = FSSocket.escape(content)
     @sshHelper?.execCommand "echo #{escapedContent} > ~/#{escapedPath}", (err, stdout, stderr) =>
       if err
-        @socket.emit('write', err.toString(), path, vmid)
+        @socket.emit('write', err.toString(), path)
         return
-      @socket.emit('write', null, path, vmid)
+      @socket.emit('write', null, path)
 
-  onDelete: (path, vmid) =>
+  onDelete: (path) =>
     escapedPath = FSSocket.escape(path)
     @sshHelper?.execCommand "rm -rf ~/#{escapedPath}", (err, stdout, stderr) =>
       if err
-        @socket.emit('delete', err.toString(), path, vmid)
+        @socket.emit('delete', err.toString(), path)
         return
-      @socket.emit('delete', null, path, vmid)
+      @socket.emit('delete', null, path)
 
 FSSocket.escape = (string) ->
   if typeof string == 'string'

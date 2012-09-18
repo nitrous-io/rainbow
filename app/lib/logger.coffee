@@ -21,6 +21,7 @@ logger = module.exports = new winston.Logger
                                                                     json: false
                                                                     maxsize: 5 * 1024 * 1024
                                                                     timestamp: true
+                                                                    handleExceptions: true
                                         ],
                                         levels: config.levels
                                         colors: config.colors

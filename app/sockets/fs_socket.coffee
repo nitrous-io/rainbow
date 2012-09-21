@@ -58,7 +58,7 @@ module.exports = class FSSocket extends BaseSocket
     if path.match /\/$/
       cmd = "mkdir -p ~/#{escapedPath}"
     else
-      cmd = "if [ -d ~/#{escapedPath} ]; then echo 'aio_folder_exists' > /dev/stderr; exit 1; elif [ -e ~/#{escapedPath} ]; then echo 'aio_file_exists' > /dev/stderr; exit 1; else echo #{escapedContent} > ~/#{escapedPath}; fi"
+      cmd = "if [ -d ~/#{escapedPath} ]; then echo 'aio:folder_exists' > /dev/stderr; exit 1; elif [ -e ~/#{escapedPath} ]; then echo 'aio:file_exists' > /dev/stderr; exit 1; else echo #{escapedContent} > ~/#{escapedPath}; fi"
     @sshHelper?.execCommand cmd, (err, stdout, stderr) =>
       if err
         @socket.emit('new', err.toString(), path, callbackId)
@@ -67,7 +67,7 @@ module.exports = class FSSocket extends BaseSocket
 
   onRead: (path) =>
     escapedPath = FSSocket.escape(path)
-    @sshHelper?.execCommand "if (file ~/#{escapedPath} | grep -q 'empty\\|text\\|very\\ short'); then cat ~/#{escapedPath}; else echo -n 'aio_not_text_file' > /dev/stderr; exit 1; fi", (err, stdout, stderr) =>
+    @sshHelper?.execCommand "if (file ~/#{escapedPath} | grep -q 'empty\\|text\\|very\\ short'); then cat ~/#{escapedPath}; else echo -n 'aio:not_text_file' > /dev/stderr; exit 1; fi", (err, stdout, stderr) =>
       if err
         @socket.emit('read', err.toString(), path)
         return

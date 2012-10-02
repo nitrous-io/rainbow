@@ -4,6 +4,7 @@ BaseSocket = require '../../app/sockets/base_socket'
 Box = require '../../app/models/box'
 KeyPair = require '../../app/models/key_pair'
 SSHHelper = require '../../app/lib/ssh_helper'
+EventEmitter = require('events').EventEmitter
 pty = require 'pty.js'
 
 describe 'SSHSocket', ->
@@ -16,27 +17,13 @@ describe 'SSHSocket', ->
   it 'is a subclass of BaseSocket', ->
     expect(sshSocket).to.be.an.instanceof BaseSocket
 
+  it 'assigns @socket', ->
+    expect(sshSocket.socket).to.equal io.socket
+
+  it 'handles socket events', ->
+    expect(SSHSocket::events).to.deep.equal ['start', 'd', 'r', 'kill', 'disconnect']
+
   describe 'socket protocol', ->
-    context 'start', ->
-      it 'is handled by #onStart', ->
-        expect(sshSocket.socket.listeners 'start').to.deep.equal [sshSocket.onStart]
-
-    context 'd', ->
-      it 'is handled by #onData', ->
-        expect(sshSocket.socket.listeners 'd').to.deep.equal [sshSocket.onData]
-
-    context 'r', ->
-      it 'is handled by #onResize', ->
-        expect(sshSocket.socket.listeners 'r').to.deep.equal [sshSocket.onResize]
-
-    context 'kill', ->
-      it 'is handled by #onKill', ->
-        expect(sshSocket.socket.listeners 'kill').to.deep.equal [sshSocket.onKill]
-
-    context 'disconnect', ->
-      it 'is handled by #onDisconnect', ->
-        expect(sshSocket.socket.listeners 'disconnect').to.deep.equal [sshSocket.onDisconnect]
-
     describe '#onStart', ->
       error = box = null
 
@@ -187,16 +174,16 @@ describe 'SSHSocket', ->
             expect(cbSpy).to.have.been.calledWith error
 
         context 'when spawning a new pty succeeds', ->
-          ptySpy = null
+          mockPty = null
 
           beforeEach ->
-            ptySpy =
-              once: sinon.spy()
-              on: sinon.spy()
+            mockPty = new EventEmitter()
+            sinon.stub sshSocket, 'onPTYData'
+            sinon.stub sshSocket, 'onPTYClose'
             sinon.stub pty, 'spawn', (cmd, args) ->
               expect(cmd).to.equal '/usr/bin/ssh'
               expect(args).to.deep.equal ['-sshargs']
-              ptySpy
+              mockPty
             doAction()
 
           afterEach ->
@@ -208,70 +195,65 @@ describe 'SSHSocket', ->
           describe 'pty events', ->
             context "the first time 'data' event is received", ->
               it 'deletes they key file', ->
-                expect(ptySpy.once).to.have.been.calledWith 'data'
                 expect(deleteKeyFileSpy).not.to.have.been.called
-                ptySpy.once.args[0][1]()
-                expect(deleteKeyFileSpy).to.have.been.called
+                mockPty.emit 'data'
+                expect(deleteKeyFileSpy).to.have.been.calledOnce
+                mockPty.emit 'data'
+                expect(deleteKeyFileSpy).to.have.been.calledOnce # only gets called once
 
             context 'data', ->
               it 'is handled by #onPTYData', ->
-                expect(ptySpy.on).to.have.been.calledWith 'data', sshSocket.onPTYData
+                mockPty.emit 'data'
+                expect(sshSocket.onPTYData).to.have.been.called
 
             context 'close', ->
-              it 'is handled by #onPTYData', ->
-                expect(ptySpy.on).to.have.been.calledWith 'close', sshSocket.onPTYClose
+              it 'is handled by #onPTYClose', ->
+                mockPty.emit 'close'
+                expect(sshSocket.onPTYClose).to.have.been.called
 
-  describe '#onData', ->
+  describe '#onD', ->
     context 'when a pty session does not exist', ->
       it 'does nothing', ->
-        sshSocket.onData 'some data'
+        sshSocket.onD 'some data'
 
     context 'when a pty session exists', ->
       it 'writes data to pty', ->
         sshSocket.pty =
           write: sinon.mock().withExactArgs('some data').once()
-        sshSocket.onData 'some data'
+        sshSocket.onD 'some data'
         sshSocket.pty.write.verify()
 
-  describe '#onResize', ->
+  describe '#onR', ->
     context 'when a pty session does not exist', ->
       it 'does nothing', ->
-        sshSocket.onResize 80, 25
+        sshSocket.onR 80, 25
 
     context 'when a pty session exists', ->
       it 'resizes pty', ->
         sshSocket.pty =
           resize: sinon.mock().withExactArgs(80, 25).once()
-        sshSocket.onResize 80, 25
+        sshSocket.onR 80, 25
         sshSocket.pty.resize.verify()
 
   describe '#onKill', ->
-    context 'when a pty session does not exist', ->
-      it 'does nothing', ->
-        sshSocket.onKill()
+    beforeEach ->
+      sinon.stub sshSocket.socket, 'disconnect'
+      sinon.stub sshSocket, 'destroy'
+      sshSocket.onKill()
 
-    context 'when a pty session exists', ->
-      it 'destroys and deletes @pty', ->
-        mockPty = sshSocket.pty =
-          destroy: sinon.mock().once()
-        sshSocket.onKill()
-        mockPty.destroy.verify()
-        expect(sshSocket).not.to.have.property 'pty'
+    it 'disconnects socket connection', ->
+      expect(sshSocket.socket.disconnect).to.have.been.called
+
+    it 'calls destroy', ->
+      expect(sshSocket.destroy).to.have.been.called
 
   describe '#onDisconnect', ->
     beforeEach ->
-      sshSocket.box = new Box
-
-    it 'calls onKill', ->
-      sinon.stub sshSocket, 'onKill'
+      sinon.stub sshSocket, 'destroy'
       sshSocket.onDisconnect()
-      expect(sshSocket.onKill).to.have.been.called
 
-    it 'deletes @socket, @box, @user', ->
-      sshSocket.onDisconnect()
-      expect(sshSocket).not.to.have.property 'socket'
-      expect(sshSocket).not.to.have.property 'box'
-      expect(sshSocket).not.to.have.property 'user'
+    it 'calls destroy', ->
+      expect(sshSocket.destroy).to.have.been.called
 
   describe '#onPTYData', ->
     it 'emits "d" message with the data via socket', ->
@@ -286,4 +268,20 @@ describe 'SSHSocket', ->
       sshSocket.onPTYClose()
       expect(sshSocket.socket.emit).to.have.been.calledWith 'close'
       expect(sshSocket).not.to.have.property 'pty'
+
+  describe '#destroy', ->
+    mockPty = null
+
+    beforeEach ->
+      mockPty = sshSocket.pty = { destroy: -> }
+      sinon.stub sshSocket.pty, 'destroy'
+      sshSocket.box = new Box
+      sshSocket.destroy()
+
+    it 'destroys and deletes @pty', ->
+      expect(mockPty.destroy).to.have.been.called
+      expect(sshSocket.pty).not.to.exist
+
+    it 'deletes @box', ->
+      expect(sshSocket.box).not.to.exist
 

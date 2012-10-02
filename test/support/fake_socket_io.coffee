@@ -22,3 +22,5 @@ class FakeSocket extends EventEmitter
       data:
         user: { id: 123 }
 
+  disconnect: ->
+

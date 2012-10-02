@@ -4,16 +4,9 @@ SSHHelper = require '../lib/ssh_helper'
 _ = require 'underscore'
 
 module.exports = class FSSocket extends BaseSocket
-  constructor: (@socket) ->
-    super(@socket)
-    @socket.on 'start', this.onStart
-    @socket.on 'list', this.onList
-    @socket.on 'new', this.onNew
-    @socket.on 'read', this.onRead
-    @socket.on 'write', this.onWrite
-    @socket.on 'delete', this.onDelete
+  events: ['start', 'list', 'new', 'read', 'write', 'delete', 'disconnect']
 
-  onStart: (boxId) =>
+  onStart: (boxId) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
       if err
         @socket.emit('start', err.toString())
@@ -36,7 +29,7 @@ module.exports = class FSSocket extends BaseSocket
         @sshHelper = new SSHHelper('action', @box.host, @box.port, keyPair.private_key)
         @socket.emit('start')
 
-  onList: (path) =>
+  onList: (path) ->
     escapedPath = FSSocket.escape(path)
     @sshHelper?.execCommand "ls -1bp ~/#{escapedPath}", (err, stdout, stderr) =>
       if err
@@ -52,7 +45,7 @@ module.exports = class FSSocket extends BaseSocket
       files = _.filter(files, (file) -> file.indexOf("\\") == -1)
       @socket.emit('list', null, path, files)
 
-  onNew: (path, content, callbackId) =>
+  onNew: (path, content, callbackId) ->
     escapedPath = FSSocket.escape(path)
     escapedContent = FSSocket.escape(content)
     if path.match /\/$/
@@ -65,7 +58,7 @@ module.exports = class FSSocket extends BaseSocket
         return
       @socket.emit('new', null, path, callbackId)
 
-  onRead: (path) =>
+  onRead: (path) ->
     escapedPath = FSSocket.escape(path)
     @sshHelper?.execCommand "if (file ~/#{escapedPath} | grep -q 'empty\\|text\\|very\\ short'); then cat ~/#{escapedPath}; else echo -n 'aio:not_text_file' > /dev/stderr; exit 1; fi", (err, stdout, stderr) =>
       if err
@@ -73,7 +66,7 @@ module.exports = class FSSocket extends BaseSocket
         return
       @socket.emit('read', null, path, stdout.slice(0, -1))
 
-  onWrite: (path, content) =>
+  onWrite: (path, content) ->
     escapedPath = FSSocket.escape(path)
     escapedContent = FSSocket.escape(content)
     @sshHelper?.execCommand "echo #{escapedContent} > ~/#{escapedPath}", (err, stdout, stderr) =>
@@ -82,13 +75,21 @@ module.exports = class FSSocket extends BaseSocket
         return
       @socket.emit('write', null, path)
 
-  onDelete: (path) =>
+  onDelete: (path) ->
     escapedPath = FSSocket.escape(path)
     @sshHelper?.execCommand "rm -rf ~/#{escapedPath}", (err, stdout, stderr) =>
       if err
         @socket.emit('delete', err.toString(), path)
         return
       @socket.emit('delete', null, path)
+
+  onDisconnect: ->
+    this.destroy()
+
+  destroy: ->
+    super()
+    delete @sshHelper
+    delete @box
 
 FSSocket.escape = (string) ->
   if typeof string == 'string'

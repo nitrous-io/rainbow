@@ -1,6 +1,8 @@
 FSSocket = require '../../app/sockets/fs_socket'
 FakeSocketIO = require '../support/fake_socket_io'
 BaseSocket = require '../../app/sockets/base_socket'
+Box = require '../../app/models/box'
+SSHHelper = require '../../app/lib/ssh_helper'
 
 describe 'FSSocket', ->
   fsSocket = io = null
@@ -11,6 +13,9 @@ describe 'FSSocket', ->
 
   it 'is a subclass of BaseSocket', ->
     expect(fsSocket).to.be.an.instanceof BaseSocket
+
+  it 'handles socket events', ->
+    expect(FSSocket::events).to.deep.equal ['start', 'list', 'new', 'read', 'write', 'delete', 'disconnect']
 
   describe '.escape', ->
     context 'when given a string', ->
@@ -26,34 +31,21 @@ describe 'FSSocket', ->
         expect(FSSocket.escape 123).to.be.null
         expect(FSSocket.escape {}).to.be.null
 
-  describe 'socket protocol', ->
-    context 'start', ->
-      it 'is handled by #onStart', ->
-        expect(fsSocket.socket.listeners 'start').to.deep.equal [fsSocket.onStart]
+  describe '#onDisconnect', ->
+    beforeEach ->
+      sinon.stub fsSocket, 'destroy'
+      fsSocket.onDisconnect()
 
-    context 'list', ->
-      it 'is handled by #onList', ->
-        expect(fsSocket.socket.listeners 'list').to.deep.equal [fsSocket.onList]
+    it 'calls destroy', ->
+      expect(fsSocket.destroy).to.have.been.called
 
-    context 'new', ->
-      it 'is handled by #onNew', ->
-        expect(fsSocket.socket.listeners 'new').to.deep.equal [fsSocket.onNew]
+  describe '#destroy', ->
+    beforeEach ->
+      fsSocket.box = new Box
+      fsSocket.sshHelper = new SSHHelper
+      fsSocket.destroy()
 
-    context 'read', ->
-      it 'is handled by #onRead', ->
-        expect(fsSocket.socket.listeners 'read').to.deep.equal [fsSocket.onRead]
-
-    context 'write', ->
-      it 'is handled by #onWrite', ->
-        expect(fsSocket.socket.listeners 'write').to.deep.equal [fsSocket.onWrite]
-
-    context 'delete', ->
-      it 'is handled by #onDelete', ->
-        expect(fsSocket.socket.listeners 'delete').to.deep.equal [fsSocket.onDelete]
-
-    describe '#onList', -> it()
-    describe '#onNew', -> it()
-    describe '#onRead', -> it()
-    describe '#onWrite', -> it()
-    describe '#onDelete', -> it()
+    it 'deletes @box and @sshHelper', ->
+      expect(fsSocket.box).not.to.exist
+      expect(fsSocket.sshHelper).not.to.exist
 

@@ -2,18 +2,24 @@ BaseSocket = require '../../app/sockets/base_socket'
 FakeSocketIO = require '../support/fake_socket_io'
 User = require '../../app/models/user'
 
+class BaseSocketSubclass extends BaseSocket
+  events: ['foo', 'bar']
+
+  onFoo: ->
+  onBar: ->
+
 describe 'BaseSocket', ->
-  sshSocket = io = null
+  baseSocket = io = socket = null
 
   beforeEach ->
     io = new FakeSocketIO
-    sshSocket = new BaseSocket(io.socket)
+    socket = io.socket
 
   describe '.create', ->
     it 'is a simple factory method that creates a new BaseSocket instance', ->
-      sshSocket = BaseSocket.create(io.socket)
-      expect(sshSocket).to.be.instanceof BaseSocket
-      expect(sshSocket.socket).to.equal io.socket
+      baseSocket = BaseSocket.create(socket)
+      expect(baseSocket).to.be.instanceof BaseSocket
+      expect(baseSocket.socket).to.equal socket
 
   describe '.init', ->
     beforeEach ->
@@ -33,8 +39,8 @@ describe 'BaseSocket', ->
         BaseSocket.create.restore()
 
       it 'initializes a new BaseSocket object', ->
-        io.emit 'connection', io.socket
-        expect(BaseSocket.create).to.have.been.calledWith io.socket
+        io.emit 'connection', socket
+        expect(BaseSocket.create).to.have.been.calledWith socket
 
   describe '.authorize', ->
     handshake = accept = null
@@ -45,7 +51,7 @@ describe 'BaseSocket', ->
     context 'when the cookie is missing', ->
       beforeEach ->
         handshake = { headers: { cookie: null } }
-        BaseSocket.authorize(handshake, accept)
+        BaseSocket.authorize handshake, accept
 
       it 'calls accept with error and false', ->
         expect(accept).to.have.been.called
@@ -91,4 +97,39 @@ describe 'BaseSocket', ->
 
         it 'assigns the user to handshake.data.user', ->
           expect(handshake.data.user).to.equal user
+
+  describe 'constructor', ->
+    beforeEach ->
+      sinon.stub BaseSocketSubclass.prototype, 'onFoo'
+      sinon.stub BaseSocketSubclass.prototype, 'onBar'
+      baseSocket = new BaseSocketSubclass socket
+
+    afterEach ->
+      BaseSocketSubclass::onFoo.restore()
+      BaseSocketSubclass::onBar.restore()
+
+    it 'sets @socket to be the socket object passed as an argument', ->
+      expect(baseSocket.socket).to.equal socket
+
+    it 'sets event listeners for the events defined in the events array', ->
+      socket.emit 'foo'
+      expect(baseSocket.onFoo).to.have.been.calledOn baseSocket
+      socket.emit 'bar'
+      expect(baseSocket.onBar).to.have.been.calledOn baseSocket
+
+    it 'sets @user to be the user obj in handshake data', ->
+      expect(baseSocket.user).to.equal socket.handshake.data.user
+
+  describe '#destroy', ->
+    beforeEach ->
+      sinon.stub socket, 'removeAllListeners'
+      baseSocket = new BaseSocketSubclass socket
+      baseSocket.destroy()
+
+    it 'removes all event listeners on the socket', ->
+      expect(socket.removeAllListeners).to.have.been.called
+
+    it 'deletes @socket, @user', ->
+      expect(baseSocket.socket).not.to.exist
+      expect(baseSocket.user).not.to.exist
 

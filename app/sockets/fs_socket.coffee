@@ -83,9 +83,6 @@ module.exports = class FSSocket extends BaseSocket
         return
       @socket.emit('delete', null, path)
 
-  onDisconnect: ->
-    this.destroy()
-
   destroy: ->
     super()
     delete @sshHelper

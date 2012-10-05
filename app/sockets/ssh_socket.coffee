@@ -38,9 +38,6 @@ module.exports = class SSHSocket extends BaseSocket
     @socket.disconnect()
     this.destroy()
 
-  onDisconnect: ->
-    this.destroy()
-
   connectToSSH: (callback) ->
     @box?.findKeyPair (err, keyPair) =>
       if err

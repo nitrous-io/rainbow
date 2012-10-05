@@ -122,14 +122,24 @@ describe 'BaseSocket', ->
 
   describe '#destroy', ->
     beforeEach ->
+      sinon.spy BaseSocket.prototype, 'onDisconnect'
       sinon.stub socket, 'removeAllListeners'
-      baseSocket = new BaseSocketSubclass socket
-      baseSocket.destroy()
+      baseSocket = new BaseSocket socket
+
+    afterEach ->
+      BaseSocket::onDisconnect.restore()
 
     it 'removes all event listeners on the socket', ->
+      baseSocket.destroy()
       expect(socket.removeAllListeners).to.have.been.called
 
     it 'deletes @socket, @user', ->
+      baseSocket.destroy()
       expect(baseSocket.socket).not.to.exist
       expect(baseSocket.user).not.to.exist
+
+    it 'gets called on disconnect by default', ->
+      sinon.stub baseSocket, 'destroy'
+      baseSocket.socket.emit 'disconnect'
+      expect(baseSocket.destroy).to.have.been.called
 

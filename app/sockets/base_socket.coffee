@@ -9,7 +9,10 @@ module.exports = class BaseSocket
       fnName = 'on' + event[0].toUpperCase() + event.substring(1)
       @socket.on event, _.bind(this[fnName], this)
 
-  events: []
+  events: ['disconnect']
+
+  onDisconnect: ->
+    this.destroy()
 
   destroy: ->
     delete @socket.removeAllListeners()

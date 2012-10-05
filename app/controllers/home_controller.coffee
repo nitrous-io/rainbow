@@ -2,5 +2,5 @@ ApplicationController = require './application_controller'
 
 module.exports = class HomeController extends ApplicationController
   index: ->
-    @response.send 200, 'action-box-server OK'
+    @response.send 200, 'rainbow OK'
 

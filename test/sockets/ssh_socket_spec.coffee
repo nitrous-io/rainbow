@@ -17,97 +17,101 @@ describe 'SSHSocket', ->
   it 'is a subclass of BaseSocket', ->
     expect(sshSocket).to.be.an.instanceof BaseSocket
 
-  it 'assigns @socket', ->
-    expect(sshSocket.socket).to.equal io.socket
-
   it 'handles socket events', ->
     expect(SSHSocket::events).to.deep.equal ['start', 'd', 'r', 'kill', 'disconnect']
 
-  describe 'socket protocol', ->
-    describe '#onStart', ->
-      error = box = null
+  describe '#onStart', ->
+    beforeEach ->
+      sinon.stub sshSocket.socket, 'emit'
+      sinon.stub Box, 'findById'
+
+    afterEach ->
+      Box.findById.restore()
+
+    doAction = ->
+      sshSocket.onStart 111
+
+    it 'tries to find a box with a given id', ->
+      doAction()
+      expect(Box.findById).to.have.been.calledWith 111, ['owner_id', 'host', 'port']
+
+    context 'when finding a box with a given id fails with error', ->
+      error = null
 
       beforeEach ->
-        sinon.stub sshSocket.socket, 'emit'
-        sinon.stub Box, 'findById', (boxId, columns, cb) ->
-          expect(boxId).to.equal sshSocket.user.id
-          expect(columns).to.deep.equal ['owner_id', 'host', 'port']
-          cb error, box
+        error = new Error 'some error'
+        Box.findById.callsArgWith 2, error
+        doAction()
 
-      afterEach ->
-        Box.findById.restore()
+      it 'sends "start" message to the client with the error message', ->
+        expect(sshSocket.socket.emit).to.have.been.calledWith 'start', error.toString()
 
-      doAction = ->
-        sshSocket.onStart sshSocket.user.id
+    context 'when a box with a given id is not found', ->
+      beforeEach ->
+        Box.findById.callsArgWith 2, null, null
+        doAction()
 
-      context 'when finding a box with a given id fails with error', ->
+      it 'sends "start" message to the client with the error message', ->
+        expect(sshSocket.socket.emit).to.have.been.calledWith 'start', 'box not found'
+
+    context 'when box is found', ->
+      box = null
+
+      beforeEach ->
+        box = new Box id: 123, host: 'foobar.action.io', port: 2234
+        Box.findById.callsArgWith 2, null, box
+
+      context 'when the box does not belong to this user', ->
         beforeEach ->
-          error = new Error 'some error'
+          box.owner_id = 1337
           doAction()
 
         it 'sends "start" message to the client with the error message', ->
-          expect(sshSocket.socket.emit).to.have.been.calledWith 'start', 'Error: some error'
+          expect(sshSocket.socket.emit).to.have.been.calledWith 'start', "box doesn't belong to user"
 
-      context 'when a box with a given id is not found', ->
+      context 'when box belongs to this user', ->
         beforeEach ->
-          error = box = null
-          doAction()
+          expect(sshSocket.user.id).not.to.be.null
+          box.owner_id = sshSocket.user.id
 
-        it 'sends "start" message to the client with the error message', ->
-          expect(sshSocket.socket.emit).to.have.been.calledWith 'start', 'box not found'
-
-      context 'when box is found', ->
-        beforeEach ->
-          box = new Box
-
-        context 'when the box does not belong to this user', ->
+        context 'when a pty session is already created', ->
           beforeEach ->
-            box.owner_id = 1337
+            sshSocket.pty = sinon.spy()
             doAction()
 
           it 'sends "start" message to the client with the error message', ->
-            expect(sshSocket.socket.emit).to.have.been.calledWith 'start', "box doesn't belong to user"
+            expect(sshSocket.socket.emit).to.have.been.calledWith 'start', 'pty already created'
 
-        context 'when box belongs to this user', ->
+        context 'when a pty session is not yet created', ->
           beforeEach ->
-            expect(sshSocket.user.id).not.to.be.null
-            box.owner_id = sshSocket.user.id
+            sshSocket.pty = null
+            sinon.stub sshSocket, 'connectToSSH'
 
-          context 'when a pty session is already created', ->
+          it 'assigns the box to @box', ->
+            doAction()
+            expect(sshSocket.box).to.equal box
+
+          it 'connects to SSH', ->
+            doAction()
+            expect(sshSocket.connectToSSH).to.have.been.called
+
+          context 'when connectToSSH fails with error', ->
+            error = null
+
             beforeEach ->
-              sshSocket.pty = sinon.spy()
+              error = new Error 'some ssh error'
+              sshSocket.connectToSSH.callsArgWith 0, error
               doAction()
 
             it 'sends "start" message to the client with the error message', ->
-              expect(sshSocket.socket.emit).to.have.been.calledWith 'start', 'pty already created'
-
-          context 'when a pty session is not yet created', ->
-            beforeEach ->
-              sshSocket.pty = null
-              sinon.stub sshSocket, 'connectToSSH'
-
-            it 'assigns the box to @box', ->
-              doAction()
-              expect(sshSocket.box).to.equal box
-
-            it 'connects to SSH', ->
-              doAction()
-              expect(sshSocket.connectToSSH).to.have.been.called
-
-            context 'when connectToSSH fails with error', ->
-              beforeEach ->
-                sshSocket.connectToSSH.callsArgWith 0, new Error('some ssh error')
-                doAction()
-
-              it 'sends "start" message to the client with the error message', ->
-                expect(sshSocket.socket.emit).to.have.been.calledWith 'start', 'Error: some ssh error'
+              expect(sshSocket.socket.emit).to.have.been.calledWith 'start', error.toString()
 
   describe '#connectToSSH', ->
     error = cbSpy = null
 
     beforeEach ->
       cbSpy = sinon.spy()
-      sshSocket.box = new Box id: 123, host: 'foobar.actionbox.io', port: '2234'
+      sshSocket.box = new Box id: 123, host: 'foobar.actionbox.io', port: 2234
       sinon.stub sshSocket.box, 'findKeyPair'
 
     doAction = ->
@@ -158,6 +162,8 @@ describe 'SSHSocket', ->
           SSHHelper::writeKeyFile.callsArgWith 0, null, ['-sshargs'], deleteKeyFileSpy
 
         context 'when spawning a new pty fails with exception', ->
+          error = null
+
           beforeEach ->
             error = new Error
             sinon.stub pty, 'spawn', (cmd, args) ->

@@ -40,7 +40,25 @@ module.exports = class SFTPSocket extends BaseSocket
     @sftp?.ls path, (err, fileListing) =>
       @socket.emit 'ls', err?.toString(), fileListing
 
-  onPut: (path, content, overwrite=true) ->
-
   onGet: (path) ->
+    @sftp?.get path, (err, fileBuffer) =>
+      @socket.emit 'get', err?.toString(), fileBuffer
+
+  onPut: (path, content, overwrite=true) ->
+    return unless @sftp
+    putFile = =>
+      @sftp.put path, content, (err) =>
+        @socket.emit 'put', err?.toString()
+
+    if overwrite
+      putFile()
+    else
+      @sftp.ls path, (err) =>
+        if err
+          if err.match /\" not found$/
+            putFile()
+          else
+            @socket.emit 'put', err
+        else
+          @socket.emit 'put', 'file exists'
 

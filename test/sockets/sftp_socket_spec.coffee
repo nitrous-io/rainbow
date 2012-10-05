@@ -181,9 +181,155 @@ describe 'SFTPSocket', ->
         it 'emits "ls" message with the file listing', ->
           expect(sftpSocket.socket.emit).to.have.been.calledWith 'ls', undefined, listing
 
-  describe '#onPut', ->
-
   describe '#onGet', ->
+    doAction = ->
+      sftpSocket.onGet 'some/path'
+
+     context 'when @sftp is not yet initialized', ->
+      beforeEach ->
+        sftpSocket.sftp = null
+
+      it 'does nothing', ->
+        expect(->
+          doAction()
+        ).not.to.throw Error
+
+    context 'when @sftp exists', ->
+      sftp = null
+
+      beforeEach ->
+        sftp = sftpSocket.sftp = new SFTP {}
+        sinon.stub sftp, 'get'
+        sinon.stub sftpSocket.socket, 'emit'
+
+      it 'runs get command', ->
+        doAction()
+        expect(sftp.get).to.have.been.calledWith 'some/path'
+
+      context 'when get command returns error', ->
+        error = new Error 'some error'
+
+        beforeEach ->
+          sftp.get.callsArgWith 1, error
+          doAction()
+
+        it 'emits "get" message with error', ->
+          expect(sftpSocket.socket.emit).to.have.been.calledWith 'get', error.toString()
+
+      context 'when get command returns file buffer', ->
+        fileBuffer = new Buffer('some text')
+
+        beforeEach ->
+          sftp.get.callsArgWith 1, null, fileBuffer
+          doAction()
+
+        it 'emits "get" message with the file buffer', ->
+          expect(sftpSocket.socket.emit).to.have.been.calledWith 'get', undefined, fileBuffer
+
+  describe '#onPut', ->
+    doAction = (overwrite=true) ->
+      sftpSocket.onPut 'some/path', 'some content', overwrite
+
+     context 'when @sftp is not yet initialized', ->
+      beforeEach ->
+        sftpSocket.sftp = null
+
+      it 'does nothing', ->
+        expect(->
+          doAction()
+        ).not.to.throw Error
+
+    context 'when @sftp exists', ->
+      sftp = null
+
+      beforeEach ->
+        sftp = sftpSocket.sftp = new SFTP {}
+        sinon.stub sftp, 'put'
+        sinon.stub sftpSocket.socket, 'emit'
+
+      context 'and overwrite is true', ->
+        it 'runs put command', ->
+          doAction()
+          expect(sftp.put).to.have.been.calledWith 'some/path', 'some content'
+
+        context 'when put command returns error', ->
+          error = new Error 'some error'
+
+          beforeEach ->
+            sftp.put.callsArgWith 2, error
+            doAction()
+
+          it 'emits "put" message with error', ->
+            expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', error.toString()
+
+        context 'when put command returns no error', ->
+          beforeEach ->
+            sftp.put.callsArgWith 2, null
+            doAction()
+
+          it 'emits "put" message with no error', ->
+            expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', undefined
+
+      context 'when overwrite is false', ->
+        beforeEach ->
+          sinon.stub sftp, 'ls'
+
+        it 'runs ls command', ->
+          doAction false
+          expect(sftp.ls).to.have.been.calledWith 'some/path'
+
+        context 'when ls returns no error', ->
+          beforeEach ->
+            sftp.ls.callsArgWith 1, null, [ ['some file'] ]
+            doAction false
+
+          it 'does not run put command', ->
+            expect(sftp.put).not.to.have.been.called
+
+          it 'emits "put" message with "file exists" error', ->
+            expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', 'file exists'
+
+        context 'when ls returns not found error', ->
+          beforeEach ->
+            sftp.ls.callsArgWith 1, '''
+              Couldn't stat remote file: No such file or directory
+              Can't ls: "/home/action/some/path" not found
+            '''
+
+          it 'runs put command', ->
+            doAction false
+            expect(sftp.put).to.have.been.calledWith 'some/path', 'some content'
+
+          context 'when put command returns error', ->
+            error = new Error 'some error'
+
+            beforeEach ->
+              sftp.put.callsArgWith 2, error
+              doAction false
+
+            it 'emits "put" message with error', ->
+              expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', error.toString()
+
+          context 'when put command returns no error', ->
+            beforeEach ->
+              sftp.put.callsArgWith 2, null
+              doAction false
+
+            it 'emits "put" message with no error', ->
+              expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', undefined
+
+        context 'when ls returns some other error', ->
+          error = 'File system completely messed up.'
+
+          beforeEach ->
+            sftp.ls.callsArgWith 1, error
+            doAction false
+
+          it 'does not run put command', ->
+            expect(sftp.put).not.to.have.been.called
+
+          it 'emits "put" message with the error', ->
+            expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', error
 
   describe '#destroy', ->
     mockSFTP = null

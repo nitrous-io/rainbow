@@ -136,3 +136,64 @@ describe 'SFTPSocket', ->
             it 'emits "start" event with error', ->
               expect(sftpSocket.socket.emit).to.have.been.calledWith 'start', error.toString()
 
+  describe '#onLs', ->
+    doAction = ->
+      sftpSocket.onLs 'some/path'
+
+    context 'when @sftp is not yet initialized', ->
+      beforeEach ->
+        sftpSocket.sftp = null
+
+      it 'does nothing', ->
+        expect(->
+          doAction()
+        ).not.to.throw Error
+
+    context 'when @sftp exists', ->
+      sftp = null
+
+      beforeEach ->
+        sftp = sftpSocket.sftp = new SFTP {}
+        sinon.stub sftp, 'ls'
+        sinon.stub sftpSocket.socket, 'emit'
+
+      it 'runs ls command', ->
+        doAction()
+        expect(sftp.ls).to.have.been.calledWith 'some/path'
+
+      context 'when ls command returns error', ->
+        error = new Error 'some error'
+
+        beforeEach ->
+          sftp.ls.callsArgWith 1, error
+          doAction()
+
+        it 'emits "ls" message with error', ->
+          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ls', error.toString()
+
+      context 'when ls command returns file listing', ->
+        listing = [ ['a'], ['b'] ]
+
+        beforeEach ->
+          sftp.ls.callsArgWith 1, null, listing
+          doAction()
+
+        it 'emits "ls" message with the file listing', ->
+          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ls', undefined, listing
+
+  describe '#onPut', ->
+
+  describe '#onGet', ->
+
+  describe '#destroy', ->
+    mockSFTP = null
+
+    beforeEach ->
+      mockSFTP = sftpSocket.sftp = { destroy: -> }
+      sinon.stub sftpSocket.sftp, 'destroy'
+      sftpSocket.destroy()
+
+    it 'destroys and deletes @sftp', ->
+      expect(mockSFTP.destroy).to.have.been.called
+      expect(sftpSocket.sftp).not.to.exist
+

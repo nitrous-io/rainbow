@@ -5,6 +5,11 @@ SFTP = require 'sftp.js'
 module.exports = class SFTPSocket extends BaseSocket
   events: ['start', 'disconnect', 'ls', 'put', 'get']
 
+  destroy: ->
+    super()
+    @sftp?.destroy()
+    delete @sftp
+
   onStart: (boxId) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
       if err
@@ -31,12 +36,11 @@ module.exports = class SFTPSocket extends BaseSocket
           else
             @socket.emit 'start'
 
-  onDisconnect: ->
-    super()
+  onLs: (path) ->
+    @sftp?.ls path, (err, fileListing) =>
+      @socket.emit 'ls', err?.toString(), fileListing
 
-  onLs: ->
+  onPut: (path, content, overwrite=true) ->
 
-  onPut: ->
-
-  onGet: ->
+  onGet: (path) ->
 

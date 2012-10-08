@@ -224,7 +224,7 @@ describe 'SFTPSocket', ->
           doAction()
 
         it 'emits "get" message with the file buffer', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'get', undefined, 'some/path', fileBuffer
+          expect(sftpSocket.socket.emit).to.have.been.calledWith 'get', undefined, 'some/path', 'some text'
 
   describe '#onPut', ->
     doAction = (overwrite=true) ->

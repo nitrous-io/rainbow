@@ -42,7 +42,7 @@ module.exports = class SFTPSocket extends BaseSocket
 
   onGet: (path) ->
     @sftp?.get path, (err, fileBuffer) =>
-      @socket.emit 'get', err?.toString(), path, fileBuffer
+      @socket.emit 'get', err?.toString(), path, fileBuffer?.toString('utf8')
 
   onPut: (path, content, overwrite=true) ->
     return unless @sftp

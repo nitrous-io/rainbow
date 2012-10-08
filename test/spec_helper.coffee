@@ -16,7 +16,5 @@ global.expect = global.chai.expect
 global.assert = global.chai.assert
 global.chai.use sinonChai
 
-global.app = require('../app').app
-
 global.Factory = require './factories'
 

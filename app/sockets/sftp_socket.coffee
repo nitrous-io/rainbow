@@ -13,13 +13,13 @@ module.exports = class SFTPSocket extends BaseSocket
   onStart: (boxId) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
       if err
-        @socket.emit('start', err.toString())
+        @socket.emit 'start', err.toString()
         return
       unless box
-        @socket.emit('start', 'box not found')
+        @socket.emit 'start', 'box not found'
         return
       if box.owner_id != @user.id
-        @socket.emit('start', "box doesn't belong to user")
+        @socket.emit 'start', "box doesn't belong to user"
         return
       box.findKeyPair (err, keyPair) =>
         if err
@@ -38,17 +38,17 @@ module.exports = class SFTPSocket extends BaseSocket
 
   onLs: (path) ->
     @sftp?.ls path, (err, fileListing) =>
-      @socket.emit 'ls', err?.toString(), fileListing
+      @socket.emit 'ls', err?.toString(), path, fileListing
 
   onGet: (path) ->
     @sftp?.get path, (err, fileBuffer) =>
-      @socket.emit 'get', err?.toString(), fileBuffer
+      @socket.emit 'get', err?.toString(), path, fileBuffer
 
   onPut: (path, content, overwrite=true) ->
     return unless @sftp
     putFile = =>
       @sftp.put path, content, (err) =>
-        @socket.emit 'put', err?.toString()
+        @socket.emit 'put', err?.toString(), path
 
     if overwrite
       putFile()
@@ -58,7 +58,7 @@ module.exports = class SFTPSocket extends BaseSocket
           if err.match /\" not found$/
             putFile()
           else
-            @socket.emit 'put', err
+            @socket.emit 'put', err, path
         else
-          @socket.emit 'put', 'file exists'
+          @socket.emit 'put', 'file exists', path
 

@@ -169,7 +169,7 @@ describe 'SFTPSocket', ->
           doAction()
 
         it 'emits "ls" message with error', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ls', error.toString()
+          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ls', error.toString(), 'some/path'
 
       context 'when ls command returns file listing', ->
         listing = [ ['a'], ['b'] ]
@@ -179,7 +179,7 @@ describe 'SFTPSocket', ->
           doAction()
 
         it 'emits "ls" message with the file listing', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ls', undefined, listing
+          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ls', undefined, 'some/path', listing
 
   describe '#onGet', ->
     doAction = ->
@@ -214,7 +214,7 @@ describe 'SFTPSocket', ->
           doAction()
 
         it 'emits "get" message with error', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'get', error.toString()
+          expect(sftpSocket.socket.emit).to.have.been.calledWith 'get', error.toString(), 'some/path'
 
       context 'when get command returns file buffer', ->
         fileBuffer = new Buffer('some text')
@@ -224,7 +224,7 @@ describe 'SFTPSocket', ->
           doAction()
 
         it 'emits "get" message with the file buffer', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'get', undefined, fileBuffer
+          expect(sftpSocket.socket.emit).to.have.been.calledWith 'get', undefined, 'some/path', fileBuffer
 
   describe '#onPut', ->
     doAction = (overwrite=true) ->
@@ -260,7 +260,7 @@ describe 'SFTPSocket', ->
             doAction()
 
           it 'emits "put" message with error', ->
-            expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', error.toString()
+            expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', error.toString(), 'some/path'
 
         context 'when put command returns no error', ->
           beforeEach ->
@@ -268,7 +268,7 @@ describe 'SFTPSocket', ->
             doAction()
 
           it 'emits "put" message with no error', ->
-            expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', undefined
+            expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', undefined, 'some/path'
 
       context 'when overwrite is false', ->
         beforeEach ->
@@ -287,7 +287,7 @@ describe 'SFTPSocket', ->
             expect(sftp.put).not.to.have.been.called
 
           it 'emits "put" message with "file exists" error', ->
-            expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', 'file exists'
+            expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', 'file exists', 'some/path'
 
         context 'when ls returns not found error', ->
           beforeEach ->
@@ -308,7 +308,7 @@ describe 'SFTPSocket', ->
               doAction false
 
             it 'emits "put" message with error', ->
-              expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', error.toString()
+              expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', error.toString(), 'some/path'
 
           context 'when put command returns no error', ->
             beforeEach ->
@@ -316,7 +316,7 @@ describe 'SFTPSocket', ->
               doAction false
 
             it 'emits "put" message with no error', ->
-              expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', undefined
+              expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', undefined, 'some/path'
 
         context 'when ls returns some other error', ->
           error = 'File system completely messed up.'
@@ -329,7 +329,7 @@ describe 'SFTPSocket', ->
             expect(sftp.put).not.to.have.been.called
 
           it 'emits "put" message with the error', ->
-            expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', error
+            expect(sftpSocket.socket.emit).to.have.been.calledWith 'put', error, 'some/path'
 
   describe '#destroy', ->
     mockSFTP = null

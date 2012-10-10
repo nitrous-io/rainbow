@@ -4,7 +4,7 @@ SSHHelper = require '../lib/ssh_helper'
 _ = require 'underscore'
 
 module.exports = class FSSocket extends BaseSocket
-  events: ['start', 'list', 'new', 'read', 'write', 'delete', 'disconnect']
+  events: ['start', 'list', 'new', 'read', 'write', 'delete']
 
   onStart: (boxId) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>

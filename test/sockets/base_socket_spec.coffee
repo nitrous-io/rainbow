@@ -143,3 +143,13 @@ describe 'BaseSocket', ->
       baseSocket.socket.emit 'disconnect'
       expect(baseSocket.destroy).to.have.been.called
 
+  describe 'bye event', ->
+    beforeEach ->
+      baseSocket = new BaseSocket socket
+      sinon.stub baseSocket.socket, 'disconnect'
+
+    it 'calls disconnect on socket', ->
+      expect(baseSocket.socket.disconnect).not.to.have.been.called
+      baseSocket.socket.emit 'bye'
+      expect(baseSocket.socket.disconnect).to.have.been.called
+

@@ -3,7 +3,7 @@ Box = require '../models/box'
 SFTP = require 'sftp.js'
 
 module.exports = class SFTPSocket extends BaseSocket
-  events: ['start', 'disconnect', 'list', 'read', 'write', 'writeNew']
+  events: ['start', 'list', 'read', 'write', 'writeNew']
 
   destroy: ->
     super()

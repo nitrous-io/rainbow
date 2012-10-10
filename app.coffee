@@ -43,7 +43,6 @@ if require.main == module || require.main.filename.match /boot\.js/
     io.set 'transports', ['websocket', 'xhr-polling']
     io.set 'match origin protocol', true
   require('./app/sockets/ssh_socket').init io, '/ws/ssh'
-  require('./app/sockets/fs_socket' ).init io, '/ws/fs'
   require('./app/sockets/sftp_socket' ).init io, '/ws/sftp'
 
 module.exports = app

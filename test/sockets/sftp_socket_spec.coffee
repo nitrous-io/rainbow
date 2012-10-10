@@ -346,8 +346,8 @@ describe 'SFTPSocket', ->
         it 'does not run put command', ->
           expect(sftp.put).not.to.have.been.called
 
-        it 'emits "writeNew" message with "file exists" error', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'writeNew', 'file exists', 'some/path'
+        it 'emits "writeNew" message with "aio:file_exists" error', ->
+          expect(sftpSocket.socket.emit).to.have.been.calledWith 'writeNew', 'aio:file_exists', 'some/path'
 
       context 'when ls returns not found error', ->
         beforeEach ->

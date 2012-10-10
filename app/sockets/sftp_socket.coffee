@@ -76,5 +76,5 @@ module.exports = class SFTPSocket extends BaseSocket
         else
           @socket.emit 'writeNew', err.toString(), path
       else
-        @socket.emit 'writeNew', 'file exists', path
+        @socket.emit 'writeNew', 'aio:file_exists', path
 

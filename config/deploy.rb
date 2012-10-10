@@ -1,4 +1,4 @@
-set :application, "action-box-server"
+set :application, "rainbow"
 set :repository,  "git@github.com:action-io/#{application}.git"
 
 set :scm, :git
@@ -19,14 +19,15 @@ default_run_options[:shell] = '/bin/bash --login'
 
 task :production do
   set :host, "rainbow-apse1.action.io"
+  role :web, host
+  role :app, host
 end
 
 task :staging do
   set :host, "rainbow-apse1-staging.action.io"
+  role :web, host
+  role :app, host
 end
-
-role :web, host
-role :app, host
 
 # if you want to clean up old releases on each deploy uncomment this:
 after "deploy:restart", "deploy:cleanup"

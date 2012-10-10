@@ -3,7 +3,7 @@ Box = require '../models/box'
 SFTP = require 'sftp.js'
 
 module.exports = class SFTPSocket extends BaseSocket
-  events: ['start', 'disconnect', 'ls', 'put', 'get']
+  events: ['start', 'disconnect', 'list', 'read', 'write', 'writeNew']
 
   destroy: ->
     super()
@@ -36,19 +36,19 @@ module.exports = class SFTPSocket extends BaseSocket
           else
             @socket.emit 'start'
 
-  onLs: (path) ->
+  onList: (path) ->
     @sftp?.ls path, (err, fileListing) =>
-      @socket.emit 'ls', err?.toString(), path, fileListing
+      @socket.emit 'list', err?.toString(), path, fileListing
 
-  onGet: (path) ->
+  onRead: (path) ->
     @sftp?.get path, (err, fileBuffer) =>
-      @socket.emit 'get', err?.toString(), path, fileBuffer?.toString('utf8')
+      @socket.emit 'read', err?.toString(), path, fileBuffer?.toString('utf8')
 
-  onPut: (path, content, overwrite=true) ->
+  onWrite: (path, content, overwrite=true) ->
     return unless @sftp
     putFile = =>
       @sftp.put path, content, (err) =>
-        @socket.emit 'put', err?.toString(), path
+        @socket.emit 'write', err?.toString(), path
 
     if overwrite
       putFile()
@@ -58,7 +58,9 @@ module.exports = class SFTPSocket extends BaseSocket
           if err.match /\" not found$/
             putFile()
           else
-            @socket.emit 'put', err, path
+            @socket.emit 'write', err, path
         else
-          @socket.emit 'put', 'file exists', path
+          @socket.emit 'write', 'file exists', path
+
+  onWriteNew: ->
 

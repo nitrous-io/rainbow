@@ -44,23 +44,22 @@ module.exports = class SFTPSocket extends BaseSocket
     @sftp?.get path, (err, fileBuffer) =>
       @socket.emit 'read', err?.toString(), path, fileBuffer?.toString('utf8')
 
-  onWrite: (path, content, overwrite=true) ->
+  putFile: (eventName, path, content) ->
+    @sftp.put path, content, (err) =>
+      @socket.emit eventName, err?.toString(), path
+
+  onWrite: (path, content) ->
     return unless @sftp
-    putFile = =>
-      @sftp.put path, content, (err) =>
-        @socket.emit 'write', err?.toString(), path
+    this.putFile 'write', path, content
 
-    if overwrite
-      putFile()
-    else
-      @sftp.ls path, (err) =>
-        if err
-          if err.match /\" not found$/
-            putFile()
-          else
-            @socket.emit 'write', err, path
+  onWriteNew: (path, content) ->
+    return unless @sftp
+    @sftp.ls path, (err) =>
+      if err
+        if err.match /Can't ls: ".+" not found$/
+          this.putFile 'writeNew', path, content
         else
-          @socket.emit 'write', 'file exists', path
-
-  onWriteNew: ->
+          @socket.emit 'writeNew', err, path
+      else
+        @socket.emit 'writeNew', 'file exists', path
 

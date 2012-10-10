@@ -3,7 +3,7 @@ FakeSocketIO = require '../support/fake_socket_io'
 User = require '../../app/models/user'
 
 class BaseSocketSubclass extends BaseSocket
-  events: ['foo', 'bar']
+  @EVENTS: ['foo', 'bar']
 
   onFoo: ->
   onBar: ->
@@ -111,7 +111,7 @@ describe 'BaseSocket', ->
     it 'sets @socket to be the socket object passed as an argument', ->
       expect(baseSocket.socket).to.equal socket
 
-    it 'sets event listeners for the events defined in the events array', ->
+    it 'sets event listeners for the events defined in the EVENTS array', ->
       socket.emit 'foo'
       expect(baseSocket.onFoo).to.have.been.calledOn baseSocket
       socket.emit 'bar'

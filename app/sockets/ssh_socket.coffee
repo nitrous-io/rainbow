@@ -5,7 +5,7 @@ SSHHelper = require '../lib/ssh_helper'
 pty = require 'pty.js'
 
 module.exports = class SSHSocket extends BaseSocket
-  events: ['start', 'd', 'r', 'kill']
+  @EVENTS: ['start', 'd', 'r', 'kill']
 
   onStart: (boxId) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>

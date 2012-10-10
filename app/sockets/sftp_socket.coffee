@@ -4,7 +4,7 @@ SFTP = require 'sftp.js'
 
 module.exports = class SFTPSocket extends BaseSocket
   @SIZE_LIMIT: 2 * 1024 * 1024 # 2 megabytes
-  events: ['start', 'list', 'read', 'write', 'writeNew']
+  @EVENTS: ['start', 'list', 'read', 'write', 'writeNew']
 
   destroy: ->
     super()

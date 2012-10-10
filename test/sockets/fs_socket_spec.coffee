@@ -15,7 +15,7 @@ describe 'FSSocket', ->
     expect(fsSocket).to.be.an.instanceof BaseSocket
 
   it 'handles socket events', ->
-    expect(FSSocket::events).to.deep.equal ['start', 'list', 'new', 'read', 'write', 'delete']
+    expect(FSSocket.EVENTS).to.deep.equal ['start', 'list', 'new', 'read', 'write', 'delete']
 
   describe '.escape', ->
     context 'when given a string', ->

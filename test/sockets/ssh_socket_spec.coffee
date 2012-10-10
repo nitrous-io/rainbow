@@ -18,7 +18,7 @@ describe 'SSHSocket', ->
     expect(sshSocket).to.be.an.instanceof BaseSocket
 
   it 'handles socket events', ->
-    expect(SSHSocket::events).to.deep.equal ['start', 'd', 'r', 'kill']
+    expect(SSHSocket.EVENTS).to.deep.equal ['start', 'd', 'r', 'kill']
 
   describe '#onStart', ->
     beforeEach ->

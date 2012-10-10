@@ -3,14 +3,14 @@ cookie = require 'cookie'
 User = require '../models/user'
 
 module.exports = class BaseSocket
+  @EVENTS: []
+
   constructor: (@socket) ->
     @user = @socket.handshake.data.user
-    events = _.chain(@events).union(['disconnect', 'bye']).uniq().value()
+    events = _.chain(@constructor.EVENTS).union(['disconnect', 'bye']).uniq().value()
     for event in events
       fnName = 'on' + event[0].toUpperCase() + event.substring(1)
       @socket.on event, _.bind(this[fnName], this)
-
-  events: []
 
   onDisconnect: ->
     this.destroy()

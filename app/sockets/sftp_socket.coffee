@@ -3,6 +3,7 @@ Box = require '../models/box'
 SFTP = require 'sftp.js'
 
 module.exports = class SFTPSocket extends BaseSocket
+  @SIZE_LIMIT: 2 * 1024 * 1024 # 2 megabytes
   events: ['start', 'list', 'read', 'write', 'writeNew']
 
   destroy: ->
@@ -41,8 +42,22 @@ module.exports = class SFTPSocket extends BaseSocket
       @socket.emit 'list', err?.toString(), path, fileListing
 
   onRead: (path) ->
-    @sftp?.get path, (err, fileBuffer) =>
-      @socket.emit 'read', err?.toString(), path, fileBuffer?.toString('utf8')
+    return unless @sftp
+    @sftp.ls path, (err, list) =>
+      if err
+        @socket.emit 'read', err.toString(), path
+      else
+        if list[0] && list[0][2] <= @constructor.SIZE_LIMIT
+          @sftp.get path, (err, fileBuffer, fileType) =>
+            if err
+              @socket.emit 'read', err.toString(), path
+            else
+              if fileType.match /text|very short|empty/
+                @socket.emit 'read', null, path, fileBuffer?.toString('utf8')
+              else
+                @socket.emit 'read', 'aio:not_text_file', path
+        else
+          @socket.emit 'read', 'aio:file_too_large', path
 
   putFile: (eventName, path, content) ->
     @sftp.put path, content, (err) =>
@@ -56,10 +71,10 @@ module.exports = class SFTPSocket extends BaseSocket
     return unless @sftp
     @sftp.ls path, (err) =>
       if err
-        if err.match /Can't ls: ".+" not found$/
+        if err.toString().match /Can't ls: ".+" not found$/
           this.putFile 'writeNew', path, content
         else
-          @socket.emit 'writeNew', err, path
+          @socket.emit 'writeNew', err.toString(), path
       else
         @socket.emit 'writeNew', 'file exists', path
 

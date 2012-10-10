@@ -168,7 +168,7 @@ describe 'SFTPSocket', ->
           sftp.ls.callsArgWith 1, error
           doAction()
 
-        it 'emits "ls" message with error', ->
+        it 'emits "list" message with error', ->
           expect(sftpSocket.socket.emit).to.have.been.calledWith 'list', error.toString(), 'some/path'
 
       context 'when ls command returns file listing', ->
@@ -178,7 +178,7 @@ describe 'SFTPSocket', ->
           sftp.ls.callsArgWith 1, null, listing
           doAction()
 
-        it 'emits "ls" message with the file listing', ->
+        it 'emits "list" message with the file listing', ->
           expect(sftpSocket.socket.emit).to.have.been.calledWith 'list', undefined, 'some/path', listing
 
   describe '#onRead', ->
@@ -201,30 +201,73 @@ describe 'SFTPSocket', ->
         sftp = sftpSocket.sftp = new SFTP {}
         sinon.stub sftp, 'get'
         sinon.stub sftpSocket.socket, 'emit'
+        sinon.stub sftp, 'ls'
 
-      it 'runs get command', ->
+      it 'runs ls command', ->
         doAction()
-        expect(sftp.get).to.have.been.calledWith 'some/path'
+        expect(sftp.ls).to.have.been.calledWith 'some/path'
 
-      context 'when get command returns error', ->
-        error = new Error 'some error'
+      context 'when ls returns no error', ->
+        context 'when the file size is more than the SIZE_LIMIT', ->
+          beforeEach ->
+            sftp.ls.callsArgWith 1, null, [ ['some_file', false, SFTPSocket.SIZE_LIMIT + 1] ]
+            doAction()
+
+          it 'does not run get command', ->
+            expect(sftp.get).not.to.have.been.called
+
+          it 'emits "read" message with "aio:file_too_large" error', ->
+            expect(sftpSocket.socket.emit).to.have.been.calledWith 'read', 'aio:file_too_large', 'some/path'
+
+        context 'when the file size is less than or equal to SIZE_LIMIT', ->
+          beforeEach ->
+            sftp.ls.callsArgWith 1, null, [ ['some_file', false, SFTPSocket.SIZE_LIMIT] ]
+
+          it 'runs get command', ->
+            doAction()
+            expect(sftp.get).to.have.been.calledWith 'some/path'
+
+          context 'when get command returns error', ->
+            error = new Error 'some error'
+
+            beforeEach ->
+              sftp.get.callsArgWith 1, error
+              doAction()
+
+            it 'emits "read" message with error', ->
+              expect(sftpSocket.socket.emit).to.have.been.calledWith 'read', error.toString(), 'some/path'
+
+          context 'when get command returns file buffer', ->
+            fileBuffer = new Buffer('some text')
+
+            context 'when the file type is text file', ->
+              beforeEach ->
+                sftp.get.callsArgWith 1, null, fileBuffer, 'some/path: Ruby module source, ASCII text'
+                doAction()
+
+              it 'emits "read" message with the file buffer', ->
+                expect(sftpSocket.socket.emit).to.have.been.calledWith 'read', null, 'some/path', 'some text'
+
+            context 'when the file type is not text file', ->
+              beforeEach ->
+                sftp.get.callsArgWith 1, null, fileBuffer, 'some/path: PNG image data, 128 x 128, 8-bit/color RGBA, non-interlaced'
+                doAction()
+
+              it 'emits "read" message with "aio:not_text_file" error', ->
+                expect(sftpSocket.socket.emit).to.have.been.calledWith 'read', 'aio:not_text_file', 'some/path', undefined
+
+      context 'when ls returns some other error', ->
+        error = 'File system completely messed up.'
 
         beforeEach ->
-          sftp.get.callsArgWith 1, error
+          sftp.ls.callsArgWith 1, error
           doAction()
 
-        it 'emits "get" message with error', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'read', error.toString(), 'some/path'
+        it 'does not run get command', ->
+          expect(sftp.get).not.to.have.been.called
 
-      context 'when get command returns file buffer', ->
-        fileBuffer = new Buffer('some text')
-
-        beforeEach ->
-          sftp.get.callsArgWith 1, null, fileBuffer
-          doAction()
-
-        it 'emits "get" message with the file buffer', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'read', undefined, 'some/path', 'some text'
+        it 'emits "read" message with the error', ->
+          expect(sftpSocket.socket.emit).to.have.been.calledWith 'read', error, 'some/path'
 
   describe '#onWrite', ->
     doAction = ->
@@ -258,7 +301,7 @@ describe 'SFTPSocket', ->
           sftp.put.callsArgWith 2, error
           doAction()
 
-        it 'emits "put" message with error', ->
+        it 'emits "write" message with error', ->
           expect(sftpSocket.socket.emit).to.have.been.calledWith 'write', error.toString(), 'some/path'
 
       context 'when put command returns no error', ->
@@ -266,7 +309,7 @@ describe 'SFTPSocket', ->
           sftp.put.callsArgWith 2, null
           doAction()
 
-        it 'emits "put" message with no error', ->
+        it 'emits "write" message with no error', ->
           expect(sftpSocket.socket.emit).to.have.been.calledWith 'write', undefined, 'some/path'
 
   describe '#onWriteNew', ->
@@ -292,18 +335,18 @@ describe 'SFTPSocket', ->
         sinon.stub sftp, 'ls'
 
       it 'runs ls command', ->
-        doAction false
+        doAction()
         expect(sftp.ls).to.have.been.calledWith 'some/path'
 
       context 'when ls returns no error', ->
         beforeEach ->
           sftp.ls.callsArgWith 1, null, [ ['some file'] ]
-          doAction false
+          doAction()
 
         it 'does not run put command', ->
           expect(sftp.put).not.to.have.been.called
 
-        it 'emits "put" message with "file exists" error', ->
+        it 'emits "writeNew" message with "file exists" error', ->
           expect(sftpSocket.socket.emit).to.have.been.calledWith 'writeNew', 'file exists', 'some/path'
 
       context 'when ls returns not found error', ->
@@ -314,7 +357,7 @@ describe 'SFTPSocket', ->
           '''
 
         it 'runs put command', ->
-          doAction false
+          doAction()
           expect(sftp.put).to.have.been.calledWith 'some/path', 'some content'
 
         context 'when put command returns error', ->
@@ -322,17 +365,17 @@ describe 'SFTPSocket', ->
 
           beforeEach ->
             sftp.put.callsArgWith 2, error
-            doAction false
+            doAction()
 
-          it 'emits "put" message with error', ->
+          it 'emits "writeNew" message with error', ->
             expect(sftpSocket.socket.emit).to.have.been.calledWith 'writeNew', error.toString(), 'some/path'
 
         context 'when put command returns no error', ->
           beforeEach ->
             sftp.put.callsArgWith 2, null
-            doAction false
+            doAction()
 
-          it 'emits "put" message with no error', ->
+          it 'emits "writeNew" message with no error', ->
             expect(sftpSocket.socket.emit).to.have.been.calledWith 'writeNew', undefined, 'some/path'
 
       context 'when ls returns some other error', ->
@@ -340,12 +383,12 @@ describe 'SFTPSocket', ->
 
         beforeEach ->
           sftp.ls.callsArgWith 1, error
-          doAction false
+          doAction()
 
         it 'does not run put command', ->
           expect(sftp.put).not.to.have.been.called
 
-        it 'emits "put" message with the error', ->
+        it 'emits "writeNew" message with the error', ->
           expect(sftpSocket.socket.emit).to.have.been.calledWith 'writeNew', error, 'some/path'
 
   describe '#destroy', ->

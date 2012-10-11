@@ -7,12 +7,8 @@ set :branch, :master
 set :user, 'action'
 set :deploy_to, "/var/apps/#{application}"
 set :use_sudo, false
-set :git_enable_submodules, 1
 set :port, 65100
-
-set :default_environment, {
-  'PATH' =>  "$HOME/.nvm/v0.8.9/bin:$PATH"
-}
+set :git_enable_submodules, 1
 
 default_run_options[:pty] = true
 default_run_options[:shell] = '/bin/bash --login'
@@ -46,15 +42,16 @@ namespace :deploy do
   end
 
   task :start, :roles => :app do
-    run "cd #{latest_release} && export $(cat .env) && forever start boot.js"
+    run "sudo /usr/sbin/service #{application} start"
   end
 
   task :stop, :roles => :app do
-    run "cd #{latest_release} && export $(cat .env) && forever stop boot.js"
+    run "sudo /usr/sbin/service #{application} stop"
   end
 
   task :restart, :roles => :app do
-    run "cd #{latest_release} && export $(cat .env) && forever stop boot.js && forever start boot.js"
+    stop
+    start
   end
 
   task :npm, :roles => :app do
@@ -65,12 +62,13 @@ namespace :deploy do
       npm install ws --ws:native &&
       npm prune &&
       cp #{shared_path}/config/.env #{latest_release}/ &&
-      cp #{shared_path}/config/database.coffee #{latest_release}/config/
+      cp #{shared_path}/config/database.coffee #{latest_release}/config/database.coffee
     CMD
   end
 
   task :restart, :roles => :app, :except => { :no_release => true } do
-    run "cd #{latest_release} && export $(cat .env) && forever stop boot.js && forever start boot.js"
+    run "if [ -f /var/run/#{application}.pid ]; then sudo /usr/sbin/service #{application} stop; fi"
+    run "sudo /usr/sbin/service #{application} start"
   end
 end
 

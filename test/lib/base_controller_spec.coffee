@@ -8,6 +8,8 @@ describe 'BaseController', ->
 
   before ->
     request = new Request()
+    request.app =
+      some: 'app'
     request.params =
       id: 'some-id'
       user_id: 'another-id'
@@ -16,11 +18,12 @@ describe 'BaseController', ->
       baz: 'qux'
     request.query =
       hello: 'world'
-      humty: 'dumty'
+      humpty: 'dumpty'
     response = new Response request
     controller = new BaseController request, response
 
   it 'initializes properly', ->
+    expect(controller.app).to.equal request.app
     expect(controller.request).to.equal request
     expect(controller.response).to.equal response
     expect(controller.params).to.deep.equal
@@ -29,5 +32,5 @@ describe 'BaseController', ->
       foo: 'bar'
       baz: 'qux'
       hello: 'world'
-      humty: 'dumty'
+      humpty: 'dumpty'
 

@@ -1,5 +1,6 @@
 module.exports = class BaseController
   constructor: (@request, @response) ->
+    @app = @request.app
     @params = {}
     if @request
       ['query', 'body', 'params'].forEach (p) =>
@@ -7,3 +8,4 @@ module.exports = class BaseController
           @params[key] = value for own key, value of @request[p]
 
   index: ->
+

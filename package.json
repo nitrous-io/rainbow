@@ -24,7 +24,7 @@
   , "sinon"        : "1.4.x"
   , "chai"         : "1.2.x"
   , "sinon-chai"   : "2.1.x"
-  , "factory-lady" : "0.1.x"
+  //, "factory-lady" : "0.1.x"
   , "supertest"    : "0.3.x"
   }
 , "engines": {

@@ -3,6 +3,7 @@ process.env.NODE_ENV ?= 'development'
 _ = require 'underscore'
 settings = require './config/settings'
 logger = require './app/lib/logger'
+MessageVerifier = require './app/lib/message_verifier'
 
 express = require 'express'
 app = express()
@@ -13,6 +14,9 @@ _.extend app.settings, settings
 
 # express config
 require('./config/application')(app)
+
+# message verifier
+app.messageVerifier = new MessageVerifier app.settings.secretToken
 
 # postgres
 pg = require('pg').native

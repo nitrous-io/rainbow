@@ -16,5 +16,8 @@ global.expect = global.chai.expect
 global.assert = global.chai.assert
 global.chai.use sinonChai
 
-global.Factory = require './factories'
+process.env.SECRET_TOKEN = 'secret_token'
+
+global.app = require '../app'
+#global.Factory = require './factories'
 

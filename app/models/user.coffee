@@ -1,6 +1,7 @@
 BaseModel = require './base_model'
 MessageVerifier = require '../lib/message_verifier'
 settings = require '../../config/settings'
+app = require '../../app'
 
 module.exports = class User extends BaseModel
   passwordSalt: ->
@@ -9,7 +10,7 @@ module.exports = class User extends BaseModel
 User.tableName = 'users'
 
 User.verifyUserSession = (session, callback) ->
-  verifier = new MessageVerifier(settings.secretToken)
+  verifier = app.messageVerifier
   message = verifier.verify(session)
   unless message
     callback(null, null)

@@ -1,14 +1,12 @@
 process.env.NODE_ENV ?= 'development'
 
-_ = require 'underscore'
-settings = require './config/settings'
-logger = require './app/lib/logger'
-MessageVerifier = require './app/lib/message_verifier'
-
 express = require 'express'
-app = express()
+module.exports = app = express()
+
+_ = require 'underscore'
 
 # settings
+settings = require './config/settings'
 env = app.settings.env
 _.extend app.settings, settings
 
@@ -16,6 +14,7 @@ _.extend app.settings, settings
 require('./config/application')(app)
 
 # message verifier
+MessageVerifier = require './app/lib/message_verifier'
 app.messageVerifier = new MessageVerifier app.settings.secretToken
 
 # postgres
@@ -27,6 +26,8 @@ _.extend pg.defaults, database.postgres[env]
 require('./config/routes')(app)
 
 # uncaught exception handler
+logger = require './app/lib/logger'
+
 process.on 'uncaughtException', (err) ->
   logger.error err
 
@@ -48,6 +49,4 @@ if require.main == module || require.main.filename.match /boot\.js/
     io.set 'match origin protocol', true
   require('./app/sockets/ssh_socket').init io, '/ws/ssh'
   require('./app/sockets/sftp_socket' ).init io, '/ws/sftp'
-
-module.exports = app
 

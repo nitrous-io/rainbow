@@ -1,5 +1,4 @@
 BaseModel = require './base_model'
-MessageVerifier = require '../lib/message_verifier'
 settings = require '../../config/settings'
 app = require '../../app'
 

@@ -17,7 +17,7 @@
   , "socket.io"     : "0.9.x"
   , "pty.js"        : "0.1.x"
   , "winston"       : "0.6.x"
-  , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#d9afb97105307ebc1c20e7475022738175834ec2"
+  , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#bfa2084cf45a85ee47363f45f67fb4454faaf571"
   , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#e1a716737ac2936e607565420dbb79f915921da3"
   }
 , "devDependencies": {

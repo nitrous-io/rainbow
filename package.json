@@ -19,6 +19,7 @@
   , "winston"       : "0.6.x"
   , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#31737cf98a09230c5152fbe6f64782710b08d3d1"
   , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#76eaab7ee69fa3af187d47dc771c12214bb58bf8"
+  , "airbrake"      : "0.2.x"
   }
 , "devDependencies": {
     "mocha"        : "1.6.x"
@@ -35,4 +36,3 @@
     "test": "make test"
   }
 }
-

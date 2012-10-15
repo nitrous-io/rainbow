@@ -25,12 +25,11 @@ _.extend pg.defaults, database.postgres[env]
 # routes
 require('./config/routes')(app)
 
-# uncaught exception handler
+# airbrake exception handler
+airbrake = require('airbrake').createClient(app.settings.airbrakeKey)
+airbrake.handleExceptions()
+
 logger = require './app/lib/logger'
-
-process.on 'uncaughtException', (err) ->
-  logger.error err
-
 if require.main == module || require.main.filename.match /boot\.js/
   server = app.listen(process.env.PORT || 4000)
   unless address = server.address()
@@ -50,4 +49,3 @@ if require.main == module || require.main.filename.match /boot\.js/
     io.set 'match origin protocol', true
   require('./app/sockets/ssh_socket').init io, '/ws/ssh'
   require('./app/sockets/sftp_socket' ).init io, '/ws/sftp'
-

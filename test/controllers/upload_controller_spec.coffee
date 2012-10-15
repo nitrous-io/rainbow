@@ -86,10 +86,10 @@ describe 'UploadController', ->
           tokens = res.body.tokens
           expect(tokens).to.have.length 2
           tokenObj = app.messageVerifier.verify tokens[0]
-          expect(tokenObj.fileName).to.equal 'this_is_dog.png'
-          expect(tokenObj.tmpFilePath).to.match /^\/tmp\/.*$/
           tokenObj2 = app.messageVerifier.verify tokens[1]
-          expect(tokenObj2.fileName).to.equal 'nyancat.png'
+          expect(tokenObj.tmpFilePath).to.match /^\/tmp\/.*$/
           expect(tokenObj2.tmpFilePath).to.match /^\/tmp\/.*$/
+          expect([tokenObj.fileName, tokenObj2.fileName]).to.contain 'nyancat.png'
+          expect([tokenObj.fileName, tokenObj2.fileName]).to.contain 'this_is_dog.png'
           expect(tokenObj.tmpFilePath).not.to.equal tokenObj2.tmpFilePath
 

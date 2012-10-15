@@ -18,7 +18,7 @@
   , "pty.js"        : "0.1.x"
   , "winston"       : "0.6.x"
   , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#bfa2084cf45a85ee47363f45f67fb4454faaf571"
-  , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#e1a716737ac2936e607565420dbb79f915921da3"
+  , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#5a45b20ae66ccf65933cb934cbf08096a9d7fce6"
   }
 , "devDependencies": {
     "mocha"        : "1.6.x"

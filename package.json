@@ -18,6 +18,7 @@
   , "pty.js"        : "0.1.x"
   , "winston"       : "0.6.x"
   , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#master"
+  , "airbrake"      : "0.2.x"
   }
 , "devDependencies": {
     "mocha"        : "1.6.x"
@@ -34,4 +35,3 @@
     "test": "make test"
   }
 }
-

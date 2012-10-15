@@ -1,5 +1,5 @@
-pg = require('pg').native
 
+pg = require('pg').native
 module.exports = class BaseModel
   constructor: (attributes) ->
     this[k] = v for own k, v of attributes

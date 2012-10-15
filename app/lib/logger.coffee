@@ -13,16 +13,16 @@ config =
     debug: 'blue'
     error: 'red'
 
-logger = module.exports = new winston.Logger
-                                        transports: [
-                                          new winston.transports.Console colorize: true
-                                          new winston.transports.File
-                                                                    filename: "log/#{env}.log"
-                                                                    json: false
-                                                                    maxsize: 5 * 1024 * 1024
-                                                                    timestamp: true
-                                                                    handleExceptions: true
-                                        ],
-                                        levels: config.levels
-                                        colors: config.colors
+module.exports = logger = new winston.Logger
+  transports: [
+    new winston.transports.Console colorize: true
+    new winston.transports.File
+      filename: "log/#{env}.log"
+      json: false
+      maxsize: 5 * 1024 * 1024
+      timestamp: true
+      handleExceptions: true
+  ],
+  levels: config.levels
+  colors: config.colors
 

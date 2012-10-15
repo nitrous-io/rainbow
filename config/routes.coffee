@@ -1,4 +1,4 @@
-to = require '../app/lib/route_to'
+to = require('action-base').routeTo
 c = require '../app/controllers'
 
 module.exports = (app) ->

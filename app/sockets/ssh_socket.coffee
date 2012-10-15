@@ -1,7 +1,7 @@
 _ = require 'underscore'
 BaseSocket = require './base_socket'
 Box = require '../models/box'
-SSHHelper = require '../lib/ssh_helper'
+SSHHelper = require('action-base').SSHHelper
 pty = require 'pty.js'
 
 module.exports = class SSHSocket extends BaseSocket

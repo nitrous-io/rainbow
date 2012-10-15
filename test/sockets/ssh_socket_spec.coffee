@@ -3,7 +3,7 @@ FakeSocketIO = require '../support/fake_socket_io'
 BaseSocket = require '../../app/sockets/base_socket'
 Box = require '../../app/models/box'
 KeyPair = require '../../app/models/key_pair'
-SSHHelper = require '../../app/lib/ssh_helper'
+SSHHelper = require('action-base').SSHHelper
 EventEmitter = require('events').EventEmitter
 pty = require 'pty.js'
 

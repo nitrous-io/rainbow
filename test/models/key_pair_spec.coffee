@@ -1,5 +1,5 @@
 KeyPair = require '../../app/models/key_pair'
-BaseModel = require '../../app/models/base_model'
+BaseModel = require('action-base').BaseModel
 
 describe 'KeyPair', ->
   it 'is a subclass of BaseModel', ->

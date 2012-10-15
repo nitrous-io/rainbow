@@ -1,5 +1,5 @@
 ApplicationController = require '../../app/controllers/application_controller'
-BaseController = require '../../app/lib/base_controller'
+BaseController = require('action-base').BaseController
 http = require 'http'
 Request  = http.IncomingMessage
 Response = http.ServerResponse

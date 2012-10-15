@@ -1,4 +1,4 @@
-BaseController = require '../lib/base_controller'
+BaseController = require('action-base').BaseController
 
 module.exports = class ApplicationController extends BaseController
 

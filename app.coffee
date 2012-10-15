@@ -14,7 +14,7 @@ _.extend app.settings, settings
 require('./config/application')(app)
 
 # message verifier
-MessageVerifier = require './app/lib/message_verifier'
+MessageVerifier = require('action-base').MessageVerifier
 app.messageVerifier = new MessageVerifier app.settings.secretToken
 
 # postgres

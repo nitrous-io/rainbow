@@ -1,5 +1,5 @@
 Box = require '../../app/models/box'
-BaseModel = require '../../app/models/base_model'
+BaseModel = require('action-base').BaseModel
 KeyPair = require '../../app/models/key_pair'
 
 describe 'Box', ->

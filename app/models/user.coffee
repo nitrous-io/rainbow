@@ -1,4 +1,4 @@
-BaseModel = require './base_model'
+BaseModel = require('action-base').BaseModel
 settings = require '../../config/settings'
 app = require '../../app'
 

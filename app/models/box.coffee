@@ -1,4 +1,4 @@
-BaseModel = require './base_model'
+BaseModel = require('action-base').BaseModel
 KeyPair = require './key_pair'
 
 module.exports = class Box extends BaseModel

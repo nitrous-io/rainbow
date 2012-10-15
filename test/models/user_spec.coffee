@@ -1,6 +1,6 @@
 User = require '../../app/models/user'
-BaseModel = require '../../app/models/base_model'
-MessageVerifier = require '../../app/lib/message_verifier'
+BaseModel = require('action-base').BaseModel
+MessageVerifier = require('action-base').MessageVerifier
 settings = require '../../config/settings'
 
 describe 'User', ->

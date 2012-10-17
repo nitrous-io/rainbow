@@ -18,6 +18,3 @@ global.chai.use sinonChai
 
 process.env.SECRET_TOKEN = 'secret_token'
 
-global.app = require '../app'
-#global.Factory = require './factories'
-

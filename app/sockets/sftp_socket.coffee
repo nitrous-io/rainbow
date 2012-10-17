@@ -1,6 +1,8 @@
 BaseSocket = require './base_socket'
 Box = require '../models/box'
 SFTP = require 'sftp.js'
+fs = require 'fs'
+app = require '../../app'
 
 module.exports = class SFTPSocket extends BaseSocket
   @SIZE_LIMIT: 2 * 1024 * 1024 # 2 megabytes
@@ -60,7 +62,7 @@ module.exports = class SFTPSocket extends BaseSocket
           @socket.emit 'read', 'aio:file_too_large', path
 
   putFile: (eventName, path, content) ->
-    @sftp.put path, content, (err) =>
+    @sftp.putData path, content, (err) =>
       @socket.emit eventName, err?.toString(), path
 
   onWrite: (path, content) ->
@@ -77,4 +79,14 @@ module.exports = class SFTPSocket extends BaseSocket
           @socket.emit 'writeNew', err.toString(), path
       else
         @socket.emit 'writeNew', 'aio:file_exists', path
+
+  onUpload: (path, uploadToken) ->
+    return unless @sftp
+    upload = app.messageVerifier.verify uploadToken
+    if upload && upload.tmpFilePath
+      @sftp.put upload.tmpFilePath, path, (err) =>
+        fs.unlink upload.tmpFilePath
+        @socket.emit 'upload', err?.toString(), path
+    else
+      @socket.emit 'upload', 'invalid upload token', path
 

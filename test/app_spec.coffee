@@ -1,4 +1,5 @@
 MessageVerifier = require('action-base').MessageVerifier
+app = require '../app'
 
 describe 'app', ->
   it 'has a message verifier', ->

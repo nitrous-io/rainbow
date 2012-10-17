@@ -45,7 +45,7 @@ if require.main == module || require.main.filename.match /boot\.js/
   io.configure ->
     io.enable 'log'
     io.set 'log level', if env == 'development' then 3 else 1
-    io.set 'transports', ['websocket', 'xhr-polling']
+    io.set 'transports', ['websocket']
     io.set 'match origin protocol', true
   require('./app/sockets/ssh_socket').init io, '/ws/ssh'
   require('./app/sockets/sftp_socket' ).init io, '/ws/sftp'

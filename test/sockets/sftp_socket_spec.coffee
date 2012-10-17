@@ -3,7 +3,9 @@ FakeSocketIO = require '../support/fake_socket_io'
 BaseSocket = require '../../app/sockets/base_socket'
 KeyPair = require '../../app/models/key_pair'
 Box = require '../../app/models/box'
+app = require '../../app'
 SFTP = require 'sftp.js'
+fs = require 'fs'
 
 describe 'SFTPSocket', ->
   sftpSocket = io = null
@@ -185,7 +187,7 @@ describe 'SFTPSocket', ->
     doAction = ->
       sftpSocket.onRead 'some/path'
 
-     context 'when @sftp is not yet initialized', ->
+    context 'when @sftp is not yet initialized', ->
       beforeEach ->
         sftpSocket.sftp = null
 
@@ -273,7 +275,7 @@ describe 'SFTPSocket', ->
     doAction = ->
       sftpSocket.onWrite 'some/path', 'some content'
 
-     context 'when @sftp is not yet initialized', ->
+    context 'when @sftp is not yet initialized', ->
       beforeEach ->
         sftpSocket.sftp = null
 
@@ -287,26 +289,26 @@ describe 'SFTPSocket', ->
 
       beforeEach ->
         sftp = sftpSocket.sftp = new SFTP {}
-        sinon.stub sftp, 'put'
+        sinon.stub sftp, 'putData'
         sinon.stub sftpSocket.socket, 'emit'
 
-      it 'runs put command', ->
+      it 'runs putData command', ->
         doAction()
-        expect(sftp.put).to.have.been.calledWith 'some/path', 'some content'
+        expect(sftp.putData).to.have.been.calledWith 'some/path', 'some content'
 
-      context 'when put command returns error', ->
+      context 'when putData command returns error', ->
         error = new Error 'some error'
 
         beforeEach ->
-          sftp.put.callsArgWith 2, error
+          sftp.putData.callsArgWith 2, error
           doAction()
 
         it 'emits "write" message with error', ->
           expect(sftpSocket.socket.emit).to.have.been.calledWith 'write', error.toString(), 'some/path'
 
-      context 'when put command returns no error', ->
+      context 'when putData command returns no error', ->
         beforeEach ->
-          sftp.put.callsArgWith 2, null
+          sftp.putData.callsArgWith 2, null
           doAction()
 
         it 'emits "write" message with no error', ->
@@ -316,7 +318,7 @@ describe 'SFTPSocket', ->
     doAction = ->
       sftpSocket.onWriteNew 'some/path', 'some content'
 
-     context 'when @sftp is not yet initialized', ->
+    context 'when @sftp is not yet initialized', ->
       beforeEach ->
         sftpSocket.sftp = null
 
@@ -330,7 +332,7 @@ describe 'SFTPSocket', ->
 
       beforeEach ->
         sftp = sftpSocket.sftp = new SFTP {}
-        sinon.stub sftp, 'put'
+        sinon.stub sftp, 'putData'
         sinon.stub sftpSocket.socket, 'emit'
         sinon.stub sftp, 'ls'
 
@@ -343,8 +345,8 @@ describe 'SFTPSocket', ->
           sftp.ls.callsArgWith 1, null, [ ['some file'] ]
           doAction()
 
-        it 'does not run put command', ->
-          expect(sftp.put).not.to.have.been.called
+        it 'does not run putData command', ->
+          expect(sftp.putData).not.to.have.been.called
 
         it 'emits "writeNew" message with "aio:file_exists" error', ->
           expect(sftpSocket.socket.emit).to.have.been.calledWith 'writeNew', 'aio:file_exists', 'some/path'
@@ -356,23 +358,23 @@ describe 'SFTPSocket', ->
             Can't ls: "/home/action/some/path" not found
           '''
 
-        it 'runs put command', ->
+        it 'runs putData command', ->
           doAction()
-          expect(sftp.put).to.have.been.calledWith 'some/path', 'some content'
+          expect(sftp.putData).to.have.been.calledWith 'some/path', 'some content'
 
-        context 'when put command returns error', ->
+        context 'when putData command returns error', ->
           error = new Error 'some error'
 
           beforeEach ->
-            sftp.put.callsArgWith 2, error
+            sftp.putData.callsArgWith 2, error
             doAction()
 
           it 'emits "writeNew" message with error', ->
             expect(sftpSocket.socket.emit).to.have.been.calledWith 'writeNew', error.toString(), 'some/path'
 
-        context 'when put command returns no error', ->
+        context 'when putData command returns no error', ->
           beforeEach ->
-            sftp.put.callsArgWith 2, null
+            sftp.putData.callsArgWith 2, null
             doAction()
 
           it 'emits "writeNew" message with no error', ->
@@ -385,11 +387,76 @@ describe 'SFTPSocket', ->
           sftp.ls.callsArgWith 1, error
           doAction()
 
-        it 'does not run put command', ->
-          expect(sftp.put).not.to.have.been.called
+        it 'does not run putData command', ->
+          expect(sftp.putData).not.to.have.been.called
 
         it 'emits "writeNew" message with the error', ->
           expect(sftpSocket.socket.emit).to.have.been.calledWith 'writeNew', error, 'some/path'
+
+  describe '#onUpload', ->
+    doAction = (uploadToken) ->
+      uploadToken ?= app.messageVerifier.generate { fileName: 'foo.js', tmpFilePath: '/tmp/file/path' }
+      sftpSocket.onUpload 'some/path', uploadToken
+
+    context 'when @sftp is not yet initialized', ->
+      beforeEach ->
+        sftpSocket.sftp = null
+
+      it 'does nothing', ->
+        expect(->
+          doAction()
+        ).not.to.throw Error
+
+    context 'when @sftp exists', ->
+      sftp = null
+
+      beforeEach ->
+        sftp = sftpSocket.sftp = new SFTP {}
+        sinon.stub sftpSocket.socket, 'emit'
+
+      context 'when a given uploadToken is invalid', ->
+        beforeEach ->
+          doAction 'fakeUploadToken'
+
+        it 'emits "upload" message with error', ->
+          expect(sftpSocket.socket.emit).to.have.been.calledWith 'upload', 'invalid upload token', 'some/path'
+
+      context 'when a given uploadToken is valid', ->
+        beforeEach ->
+          sinon.stub sftp, 'put'
+          sinon.stub fs, 'unlink'
+
+        afterEach ->
+          fs.unlink.restore()
+
+        it 'runs put command', ->
+          doAction()
+          expect(sftp.put).to.have.been.calledWith '/tmp/file/path', 'some/path'
+          expect(fs.unlink).not.to.have.been.called
+
+        context 'when put command returns error', ->
+          error = new Error 'some error'
+
+          beforeEach ->
+            sftp.put.callsArgWith 2, error
+            doAction()
+
+          it 'emits "upload" message with error', ->
+            expect(sftpSocket.socket.emit).to.have.been.calledWith 'upload', error.toString(), 'some/path'
+
+          it 'deletes the temp file', ->
+            expect(fs.unlink).to.have.been.calledWith '/tmp/file/path'
+
+        context 'when put command returns no error', ->
+          beforeEach ->
+            sftp.put.callsArgWith 2, null
+            doAction()
+
+          it 'emits "upload" message with no error', ->
+            expect(sftpSocket.socket.emit).to.have.been.calledWith 'upload', undefined, 'some/path'
+
+          it 'deletes the temp file', ->
+            expect(fs.unlink).to.have.been.calledWith '/tmp/file/path'
 
   describe '#destroy', ->
     mockSFTP = null

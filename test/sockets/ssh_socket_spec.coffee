@@ -43,16 +43,16 @@ describe 'SSHSocket', ->
         Box.findById.callsArgWith 2, error
         doAction()
 
-      it 'sends "start" message to the client with the error message', ->
-        expect(sshSocket.socket.emit).to.have.been.calledWith 'start', error.toString()
+      it 'emits "ack-start" message to the client with the error message', ->
+        expect(sshSocket.socket.emit).to.have.been.calledWith 'ack-start', error.toString()
 
     context 'when a box with a given id is not found', ->
       beforeEach ->
         Box.findById.callsArgWith 2, null, null
         doAction()
 
-      it 'sends "start" message to the client with the error message', ->
-        expect(sshSocket.socket.emit).to.have.been.calledWith 'start', 'box not found'
+      it 'emits "start" message to the client with the error message', ->
+        expect(sshSocket.socket.emit).to.have.been.calledWith 'ack-start', 'box not found'
 
     context 'when box is found', ->
       box = null
@@ -66,8 +66,8 @@ describe 'SSHSocket', ->
           box.owner_id = 1337
           doAction()
 
-        it 'sends "start" message to the client with the error message', ->
-          expect(sshSocket.socket.emit).to.have.been.calledWith 'start', "box doesn't belong to user"
+        it 'emits "start" message to the client with the error message', ->
+          expect(sshSocket.socket.emit).to.have.been.calledWith 'ack-start', "box doesn't belong to user"
 
       context 'when box belongs to this user', ->
         beforeEach ->
@@ -79,8 +79,8 @@ describe 'SSHSocket', ->
             sshSocket.pty = sinon.spy()
             doAction()
 
-          it 'sends "start" message to the client with the error message', ->
-            expect(sshSocket.socket.emit).to.have.been.calledWith 'start', 'pty already created'
+          it 'emits "start" message to the client with the error message', ->
+            expect(sshSocket.socket.emit).to.have.been.calledWith 'ack-start', 'pty already created'
 
         context 'when a pty session is not yet created', ->
           beforeEach ->
@@ -103,8 +103,8 @@ describe 'SSHSocket', ->
               sshSocket.connectToSSH.callsArgWith 0, error
               doAction()
 
-            it 'sends "start" message to the client with the error message', ->
-              expect(sshSocket.socket.emit).to.have.been.calledWith 'start', error.toString()
+            it 'emits "start" message to the client with the error message', ->
+              expect(sshSocket.socket.emit).to.have.been.calledWith 'ack-start', error.toString()
 
   describe '#connectToSSH', ->
     error = cbSpy = null
@@ -262,10 +262,10 @@ describe 'SSHSocket', ->
       expect(sshSocket.destroy).to.have.been.called
 
   describe '#onPTYData', ->
-    it 'emits "d" message with the data via socket', ->
+    it 'emits "p" message with the data via socket', ->
       sinon.stub sshSocket.socket, 'emit'
       sshSocket.onPTYData 'some data'
-      expect(sshSocket.socket.emit).to.have.been.calledWith 'd', 'some data'
+      expect(sshSocket.socket.emit).to.have.been.calledWith 'p', 'some data'
 
   describe '#onPTYClose', ->
     it 'emits "close" message via socket and then deletes @pty', ->

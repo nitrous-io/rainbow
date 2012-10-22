@@ -10,23 +10,23 @@ module.exports = class SSHSocket extends BaseSocket
   onStart: (boxId) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
       if err
-        @socket.emit 'start', err.toString()
+        @socket.emit 'ack-start', err.toString()
         return
       unless box
-        @socket.emit 'start', 'box not found'
+        @socket.emit 'ack-start', 'box not found'
         return
       if box.owner_id != @user.id
-        @socket.emit 'start', "box doesn't belong to user"
+        @socket.emit 'ack-start', "box doesn't belong to user"
         return
       if @pty
-        @socket.emit 'start', 'pty already created'
+        @socket.emit 'ack-start', 'pty already created'
         return
       @box = box
       this.connectToSSH (err) =>
         if err
-          @socket.emit 'start', err.toString()
+          @socket.emit 'ack-start', err.toString()
           return
-        @socket.emit 'start'
+        @socket.emit 'ack-start'
 
   onD: (data) ->
     @pty?.write data
@@ -71,7 +71,7 @@ module.exports = class SSHSocket extends BaseSocket
     delete @box
 
   onPTYData: (data) ->
-    @socket?.emit 'd', data
+    @socket?.emit 'p', data
 
   onPTYClose: (hadError) ->
     delete @pty

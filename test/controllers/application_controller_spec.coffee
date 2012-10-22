@@ -1,19 +1,24 @@
 ApplicationController = require '../../app/controllers/application_controller'
 BaseController = require('action-base').BaseController
-http = require 'http'
-Request  = http.IncomingMessage
-Response = http.ServerResponse
-async = require 'async'
+app = require '../../app'
 
 describe 'ApplicationController', ->
-  request = response = controller = null
+  controller = null
 
   beforeEach (done) ->
-    request = new Request()
-    response = new Response request
-    controller = new ApplicationController request, response
+    controller = new ApplicationController {app: app}, {}
     done()
 
   it 'is a subclass of BaseController', ->
-    expect(controller).to.be.an.instanceof BaseController
+    expect(controller).to.be.an.instanceOf BaseController
+
+  describe '#_addNoCacheHeaders', ->
+    beforeEach ->
+      controller.response.set = sinon.stub()
+      controller._addNoCacheHeaders()
+
+    it 'adds headers that prevent client-side caching', ->
+      response = controller.response
+      expect(response.set).to.have.been.calledWith 'Pragma', 'no-cache'
+      expect(response.set).to.have.been.calledWith 'Cache-Control', 'no-store, no-cache, must-revalidate'
 

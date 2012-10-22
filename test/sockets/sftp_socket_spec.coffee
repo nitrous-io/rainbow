@@ -18,7 +18,7 @@ describe 'SFTPSocket', ->
     expect(sftpSocket).to.be.an.instanceof BaseSocket
 
   it 'handles socket events', ->
-    expect(SFTPSocket.EVENTS).to.deep.equal ['start', 'list', 'read', 'write', 'writeNew']
+    expect(SFTPSocket.EVENTS).to.deep.equal ['start', 'list', 'read', 'write', 'writeNew', 'upload']
 
   describe '#onStart', ->
     beforeEach ->

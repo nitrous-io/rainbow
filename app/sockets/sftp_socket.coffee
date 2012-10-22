@@ -6,7 +6,7 @@ app = require '../../app'
 
 module.exports = class SFTPSocket extends BaseSocket
   @SIZE_LIMIT: 2 * 1024 * 1024 # 2 megabytes
-  @EVENTS: ['start', 'list', 'read', 'write', 'writeNew']
+  @EVENTS: ['start', 'list', 'read', 'write', 'writeNew', 'upload']
 
   destroy: ->
     super()

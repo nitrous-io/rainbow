@@ -6,12 +6,8 @@ settings =
     secretToken: process.env.SECRET_TOKEN
     corsAllowedMethods: '*'
     corsAllowedHeaders: '*'
-  development:
-    corsAllowedOrigin: 'https://dev.action.io:5000'
-  test:
-    corsAllowedOrigin: 'https://www.action.io'
-  production:
-    corsAllowedOrigin: 'https://www.action.io https://staging.action.io'
+    corsAllowedOrigin: process.env.CORS_ALLOWED_ORIGIN
+    socketIOAllowedOrigin: process.env.SOCKETIO_ALLOWED_ORIGIN
 
 module.exports = _.extend settings.common, settings[env]
 

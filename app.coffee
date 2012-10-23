@@ -44,7 +44,7 @@ if require.main == module || require.main.filename.match /boot\.js/
   app.io = io = socketIO.listen(server)
   io.configure ->
     io.enable 'log'
-    io.set 'origins', settings.corsAllowedOrigin
+    io.set 'origins', settings.socketIOAllowedOrigin
     io.set 'log level', if env == 'development' then 3 else 1
     io.set 'transports', ['websocket']
     io.set 'match origin protocol', true

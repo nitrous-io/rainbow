@@ -99,7 +99,8 @@ describe 'SFTPSocket', ->
           keyPair = null
 
           beforeEach ->
-            keyPair = new KeyPair private_key: 'some private key'
+            keyPair = new KeyPair
+            keyPair.__defineGetter__ 'private_key', -> 'some private key'
             sinon.stub box, 'findKeyPair'
             box.findKeyPair.yields null, keyPair
 

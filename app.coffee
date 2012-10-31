@@ -28,6 +28,11 @@ require('./config/routes')(app)
 if app.settings.airbrakeAPIKey
   airbrake = require('airbrake').createClient app.settings.airbrakeAPIKey
   airbrake.handleExceptions()
+else
+  process.on 'uncaughtException', (err) ->
+    console.log err
+    console.log err.message
+    console.log err.stack
 
 logger = require './app/lib/logger'
 if require.main == module || require.main.filename.match /boot\.js/

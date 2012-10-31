@@ -3,6 +3,7 @@ env = process.env.NODE_ENV
 
 settings =
   common:
+    aesKey: process.env.AES_KEY
     secretToken: process.env.SECRET_TOKEN
     corsAllowedMethods: '*'
     corsAllowedHeaders: '*'

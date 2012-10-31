@@ -18,7 +18,7 @@
   , "pty.js"        : "0.1.x"
   , "winston"       : "0.6.x"
   , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#31737cf98a09230c5152fbe6f64782710b08d3d1"
-  , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#76eaab7ee69fa3af187d47dc771c12214bb58bf8"
+  , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#31112292ec8d21119b4b29d3d1f0c9e15c64a8de"
   , "airbrake"      : "0.2.x"
   }
 , "devDependencies": {

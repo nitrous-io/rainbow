@@ -138,7 +138,8 @@ describe 'SSHSocket', ->
       keyPair = null
 
       beforeEach ->
-        keyPair = new KeyPair private_key: 'some private key'
+        keyPair = new KeyPair
+        keyPair.__defineGetter__ 'private_key', -> 'some private key'
         sshSocket.box.findKeyPair.callsArgWith 0, null , keyPair
         sinon.stub SSHHelper.prototype, 'writeKeyFile'
 

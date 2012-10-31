@@ -25,9 +25,9 @@ _.extend pg.defaults, database.postgres[env]
 # routes
 require('./config/routes')(app)
 
-# airbrake exception handler
-airbrake = require('airbrake').createClient app.settings.airbrakeAPIKey
-airbrake.handleExceptions()
+if app.settings.airbrakeAPIKey
+  airbrake = require('airbrake').createClient app.settings.airbrakeAPIKey
+  airbrake.handleExceptions()
 
 logger = require './app/lib/logger'
 if require.main == module || require.main.filename.match /boot\.js/

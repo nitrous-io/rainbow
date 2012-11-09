@@ -14,7 +14,7 @@
   , "underscore"    : "1.4.x"
   , "pg"            : "0.8.x"
   , "tmp"           : "0.0.x"
-  , "socket.io"     : "0.9.x"
+  , "socket.io"     : "0.9.11"
   , "pty.js"        : "0.1.x"
   , "winston"       : "0.6.x"
   , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#31737cf98a09230c5152fbe6f64782710b08d3d1"

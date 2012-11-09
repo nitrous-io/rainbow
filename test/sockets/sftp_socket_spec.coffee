@@ -21,15 +21,17 @@ describe 'SFTPSocket', ->
     expect(SFTPSocket.EVENTS).to.deep.equal ['start', 'list', 'read', 'write', 'writeNew', 'upload']
 
   describe '#onStart', ->
+    ackSpy = null
+
     beforeEach ->
-      sinon.stub sftpSocket.socket, 'emit'
       sinon.stub Box, 'findById'
+      ackSpy = sinon.spy()
 
     afterEach ->
       Box.findById.restore()
 
     doAction = ->
-      sftpSocket.onStart 111
+      sftpSocket.onStart 111, ackSpy
 
     it 'tries to find a box with a given id', ->
       doAction()
@@ -43,16 +45,16 @@ describe 'SFTPSocket', ->
         Box.findById.callsArgWith 2, error
         doAction()
 
-      it 'sends "ack-start" message to the client with the error message', ->
-        expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-start', error.toString()
+      it 'calls ack callback with the error message', ->
+        expect(ackSpy).to.have.been.calledWith error.toString()
 
     context 'when a box with a given id is not found', ->
       beforeEach ->
         Box.findById.callsArgWith 2, null, null
         doAction()
 
-      it 'sends "ack-start" message to the client with the error message', ->
-        expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-start', 'box not found'
+      it 'calls ack callback with the error message', ->
+        expect(ackSpy).to.have.been.calledWith 'box not found'
 
     context 'when box is found', ->
       box = null
@@ -66,8 +68,8 @@ describe 'SFTPSocket', ->
           box.owner_id = 1337
           doAction()
 
-        it 'sends "ack-start" message to the client with the error message', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-start', "box doesn't belong to user"
+        it 'calls ack callback with the error message', ->
+          expect(ackSpy).to.have.been.calledWith "box doesn't belong to user"
 
       context 'when box belongs to this user', ->
         beforeEach ->
@@ -80,8 +82,8 @@ describe 'SFTPSocket', ->
             box.findKeyPair.yields null, null
             doAction()
 
-          it 'sends "ack-start" message to the client with the error message', ->
-            expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-start', 'key pair not found'
+          it 'calls ack callback with the error message', ->
+            expect(ackSpy).to.have.been.calledWith 'key pair not found'
 
         context 'when there was an error finding the keypair', ->
           error = null
@@ -92,8 +94,8 @@ describe 'SFTPSocket', ->
             box.findKeyPair.yields error, null
             doAction()
 
-          it 'sends "ack-start" message to the client with the error message', ->
-            expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-start', error.toString()
+          it 'calls ack callback with the error message', ->
+            expect(ackSpy).to.have.been.calledWith error.toString()
 
         context 'when a keypair for the box is found', ->
           keyPair = null
@@ -121,8 +123,8 @@ describe 'SFTPSocket', ->
             afterEach ->
               SFTP::connect.restore()
 
-            it 'emits "ack-start" event with no error', ->
-              expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-start', undefined
+            it 'calls ack callback with no error', ->
+              expect(ackSpy).to.have.been.calledWith undefined
 
           context 'when it fails to connect to sftp', ->
             error = null
@@ -136,12 +138,17 @@ describe 'SFTPSocket', ->
             afterEach ->
               SFTP::connect.restore()
 
-            it 'emits "ack-start" event with error', ->
-              expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-start', error.toString()
+            it 'calls ack callback with error', ->
+              expect(ackSpy).to.have.been.calledWith error.toString()
 
   describe '#onList', ->
+    ackSpy = null
+
+    beforeEach ->
+      ackSpy = sinon.spy()
+
     doAction = ->
-      sftpSocket.onList 'some/path'
+      sftpSocket.onList 'some/path', ackSpy
 
     context 'when @sftp is not yet initialized', ->
       beforeEach ->
@@ -158,7 +165,6 @@ describe 'SFTPSocket', ->
       beforeEach ->
         sftp = sftpSocket.sftp = new SFTP {}
         sinon.stub sftp, 'ls'
-        sinon.stub sftpSocket.socket, 'emit'
 
       it 'runs ls command', ->
         doAction()
@@ -171,8 +177,8 @@ describe 'SFTPSocket', ->
           sftp.ls.callsArgWith 1, error
           doAction()
 
-        it 'emits "ack-list" message with error', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-list', error.toString(), 'some/path'
+        it 'calls ack callback with error', ->
+          expect(ackSpy).to.have.been.calledWith error.toString(), 'some/path'
 
       context 'when ls command returns file listing', ->
         listing = [ ['a'], ['b'] ]
@@ -181,12 +187,17 @@ describe 'SFTPSocket', ->
           sftp.ls.callsArgWith 1, null, listing
           doAction()
 
-        it 'emits "ack-list" message with the file listing', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-list', undefined, 'some/path', listing
+        it 'calls ack callback with the file listing', ->
+          expect(ackSpy).to.have.been.calledWith undefined, 'some/path', listing
 
   describe '#onRead', ->
+    ackSpy = null
+
+    beforeEach ->
+      ackSpy = sinon.spy()
+
     doAction = ->
-      sftpSocket.onRead 'some/path'
+      sftpSocket.onRead 'some/path', ackSpy
 
     context 'when @sftp is not yet initialized', ->
       beforeEach ->
@@ -203,7 +214,6 @@ describe 'SFTPSocket', ->
       beforeEach ->
         sftp = sftpSocket.sftp = new SFTP {}
         sinon.stub sftp, 'get'
-        sinon.stub sftpSocket.socket, 'emit'
         sinon.stub sftp, 'ls'
 
       it 'runs ls command', ->
@@ -219,8 +229,8 @@ describe 'SFTPSocket', ->
           it 'does not run get command', ->
             expect(sftp.get).not.to.have.been.called
 
-          it 'emits "ack-read" message with "aio:file_too_large" error', ->
-            expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-read', 'aio:file_too_large', 'some/path'
+          it 'calls ack callback with "aio:file_too_large" error', ->
+            expect(ackSpy).to.have.been.calledWith 'aio:file_too_large', 'some/path'
 
         context 'when the file size is less than or equal to SIZE_LIMIT', ->
           beforeEach ->
@@ -237,8 +247,8 @@ describe 'SFTPSocket', ->
               sftp.get.callsArgWith 1, error
               doAction()
 
-            it 'emits "ack-read" message with error', ->
-              expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-read', error.toString(), 'some/path'
+            it 'calls ack callback with with error', ->
+              expect(ackSpy).to.have.been.calledWith error.toString(), 'some/path'
 
           context 'when get command returns file buffer', ->
             fileBuffer = new Buffer('some text')
@@ -248,16 +258,16 @@ describe 'SFTPSocket', ->
                 sftp.get.callsArgWith 1, null, fileBuffer, 'some/path: Ruby module source, ASCII text'
                 doAction()
 
-              it 'emits "ack-read" message with the file buffer', ->
-                expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-read', null, 'some/path', 'some text'
+              it 'calls ack callback with the file buffer', ->
+                expect(ackSpy).to.have.been.calledWith null, 'some/path', 'some text'
 
             context 'when the file type is not text file', ->
               beforeEach ->
                 sftp.get.callsArgWith 1, null, fileBuffer, 'some/path: PNG image data, 128 x 128, 8-bit/color RGBA, non-interlaced'
                 doAction()
 
-              it 'emits "ack-read" message with "aio:not_text_file" error', ->
-                expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-read', 'aio:not_text_file', 'some/path', undefined
+              it 'calls ack callback with "aio:not_text_file" error', ->
+                expect(ackSpy).to.have.been.calledWith 'aio:not_text_file', 'some/path', undefined
 
       context 'when ls returns some other error', ->
         error = 'File system completely messed up.'
@@ -269,12 +279,17 @@ describe 'SFTPSocket', ->
         it 'does not run get command', ->
           expect(sftp.get).not.to.have.been.called
 
-        it 'emits "ack-read" message with the error', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-read', error, 'some/path'
+        it 'calls ack callback with the error', ->
+          expect(ackSpy).to.have.been.calledWith error, 'some/path'
 
   describe '#onWrite', ->
+    ackSpy = null
+
+    beforeEach ->
+      ackSpy = sinon.spy()
+
     doAction = ->
-      sftpSocket.onWrite 'some/path', 'some content'
+      sftpSocket.onWrite 'some/path', 'some content', ackSpy
 
     context 'when @sftp is not yet initialized', ->
       beforeEach ->
@@ -291,7 +306,6 @@ describe 'SFTPSocket', ->
       beforeEach ->
         sftp = sftpSocket.sftp = new SFTP {}
         sinon.stub sftp, 'putData'
-        sinon.stub sftpSocket.socket, 'emit'
 
       it 'runs putData command', ->
         doAction()
@@ -304,20 +318,25 @@ describe 'SFTPSocket', ->
           sftp.putData.callsArgWith 2, error
           doAction()
 
-        it 'emits "ack-write" message with error', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-write', error.toString(), 'some/path'
+        it 'calls ack callback with error', ->
+          expect(ackSpy).to.have.been.calledWith error.toString(), 'some/path'
 
       context 'when putData command returns no error', ->
         beforeEach ->
           sftp.putData.callsArgWith 2, null
           doAction()
 
-        it 'emits "ack-write" message with no error', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-write', undefined, 'some/path'
+        it 'calls ack callback with no error', ->
+          expect(ackSpy).to.have.been.calledWith undefined, 'some/path'
 
   describe '#onWriteNew', ->
+    ackSpy = null
+
+    beforeEach ->
+      ackSpy = sinon.spy()
+
     doAction = ->
-      sftpSocket.onWriteNew 'some/path', 'some content'
+      sftpSocket.onWriteNew 'some/path', 'some content', ackSpy
 
     context 'when @sftp is not yet initialized', ->
       beforeEach ->
@@ -334,7 +353,6 @@ describe 'SFTPSocket', ->
       beforeEach ->
         sftp = sftpSocket.sftp = new SFTP {}
         sinon.stub sftp, 'putData'
-        sinon.stub sftpSocket.socket, 'emit'
         sinon.stub sftp, 'ls'
 
       it 'runs ls command', ->
@@ -349,8 +367,8 @@ describe 'SFTPSocket', ->
         it 'does not run putData command', ->
           expect(sftp.putData).not.to.have.been.called
 
-        it 'emits "ack-writeNew" message with "aio:file_exists" error', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-writeNew', 'aio:file_exists', 'some/path'
+        it 'calls ack callback "aio:file_exists" error', ->
+          expect(ackSpy).to.have.been.calledWith 'aio:file_exists', 'some/path'
 
       context 'when ls returns not found error', ->
         beforeEach ->
@@ -370,16 +388,16 @@ describe 'SFTPSocket', ->
             sftp.putData.callsArgWith 2, error
             doAction()
 
-          it 'emits "ack-writeNew" message with error', ->
-            expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-writeNew', error.toString(), 'some/path'
+          it 'calls ack callback with error', ->
+            expect(ackSpy).to.have.been.calledWith error.toString(), 'some/path'
 
         context 'when putData command returns no error', ->
           beforeEach ->
             sftp.putData.callsArgWith 2, null
             doAction()
 
-          it 'emits "ack-writeNew" message with no error', ->
-            expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-writeNew', undefined, 'some/path'
+          it 'calls ack callback with no error', ->
+            expect(ackSpy).to.have.been.calledWith undefined, 'some/path'
 
       context 'when ls returns some other error', ->
         error = 'File system completely messed up.'
@@ -391,13 +409,18 @@ describe 'SFTPSocket', ->
         it 'does not run putData command', ->
           expect(sftp.putData).not.to.have.been.called
 
-        it 'emits "ack-writeNew" message with the error', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-writeNew', error, 'some/path'
+        it 'calls ack callback with the error', ->
+          expect(ackSpy).to.have.been.calledWith error, 'some/path'
 
   describe '#onUpload', ->
+    ackSpy = null
+
+    beforeEach ->
+      ackSpy = sinon.spy()
+
     doAction = (uploadToken) ->
       uploadToken ?= app.messageVerifier.generate { fileName: 'foo.js', tmpFilePath: '/tmp/file/path' }
-      sftpSocket.onUpload 'some/path', uploadToken
+      sftpSocket.onUpload 'some/path', uploadToken, ackSpy
 
     context 'when @sftp is not yet initialized', ->
       beforeEach ->
@@ -413,14 +436,13 @@ describe 'SFTPSocket', ->
 
       beforeEach ->
         sftp = sftpSocket.sftp = new SFTP {}
-        sinon.stub sftpSocket.socket, 'emit'
 
       context 'when a given uploadToken is invalid', ->
         beforeEach ->
           doAction 'fakeUploadToken'
 
-        it 'emits "ack-upload" message with error', ->
-          expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-upload', 'invalid upload token', 'some/path'
+        it 'calls ack callback with error', ->
+          expect(ackSpy).to.have.been.calledWith 'invalid upload token', 'some/path'
 
       context 'when a given uploadToken is valid', ->
         beforeEach ->
@@ -442,8 +464,8 @@ describe 'SFTPSocket', ->
             sftp.put.callsArgWith 2, error
             doAction()
 
-          it 'emits "ack-upload" message with error', ->
-            expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-upload', error.toString(), 'some/path'
+          it 'calls ack callback with error', ->
+            expect(ackSpy).to.have.been.calledWith error.toString(), 'some/path'
 
           it 'deletes the temp file', ->
             expect(fs.unlink).to.have.been.calledWith '/tmp/file/path'
@@ -453,8 +475,8 @@ describe 'SFTPSocket', ->
             sftp.put.callsArgWith 2, null
             doAction()
 
-          it 'emits "ack-upload" message with no error', ->
-            expect(sftpSocket.socket.emit).to.have.been.calledWith 'ack-upload', undefined, 'some/path'
+          it 'calls ack callback with no error', ->
+            expect(ackSpy).to.have.been.calledWith undefined, 'some/path'
 
           it 'deletes the temp file', ->
             expect(fs.unlink).to.have.been.calledWith '/tmp/file/path'

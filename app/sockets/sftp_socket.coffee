@@ -13,80 +13,80 @@ module.exports = class SFTPSocket extends BaseSocket
     @sftp?.destroy()
     delete @sftp
 
-  onStart: (boxId) ->
+  onStart: (boxId, ack) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
       if err
-        @socket.emit 'ack-start', err.toString()
+        ack? err.toString()
         return
       unless box
-        @socket.emit 'ack-start', 'box not found'
+        ack? 'box not found'
         return
       if box.owner_id != @user.id
-        @socket.emit 'ack-start', "box doesn't belong to user"
+        ack? "box doesn't belong to user"
         return
       box.findKeyPair (err, keyPair) =>
         if err
-          @socket.emit 'ack-start', err.toString()
+          ack? err.toString()
           return
         unless keyPair
-          @socket.emit 'ack-start', 'key pair not found'
+          ack? 'key pair not found'
           return
 
         @sftp = new SFTP host: box.host, port: box.port, user: 'action', key: keyPair.private_key
         @sftp.connect (err) =>
           if err
-            @socket.emit 'ack-start', err.toString()
+            ack? err.toString()
           else
-            @socket.emit 'ack-start'
+            ack?()
 
-  onList: (path) ->
+  onList: (path, ack) ->
     @sftp?.ls path, (err, fileListing) =>
-      @socket.emit 'ack-list', err?.toString(), path, fileListing
+      ack? err?.toString(), path, fileListing
 
-  onRead: (path) ->
+  onRead: (path, ack) ->
     return unless @sftp
     @sftp.ls path, (err, list) =>
       if err
-        @socket.emit 'ack-read', err.toString(), path
+        ack? err.toString(), path
       else
         if list[0] && list[0][2] <= @constructor.SIZE_LIMIT
           @sftp.get path, (err, fileBuffer, fileType) =>
             if err
-              @socket.emit 'ack-read', err.toString(), path
+              ack? err.toString(), path
             else
               if fileType.match /text|very short|empty/
-                @socket.emit 'ack-read', null, path, fileBuffer?.toString('utf8')
+                ack? null, path, fileBuffer?.toString('utf8')
               else
-                @socket.emit 'ack-read', 'aio:not_text_file', path
+                ack? 'aio:not_text_file', path
         else
-          @socket.emit 'ack-read', 'aio:file_too_large', path
+          ack? 'aio:file_too_large', path
 
-  putFile: (eventName, path, content) ->
+  putFile: (path, content, ack) ->
     @sftp.putData path, content, (err) =>
-      @socket.emit eventName, err?.toString(), path
+      ack? err?.toString(), path
 
-  onWrite: (path, content) ->
+  onWrite: (path, content, ack) ->
     return unless @sftp
-    this.putFile 'ack-write', path, content
+    this.putFile path, content, ack
 
-  onWriteNew: (path, content) ->
+  onWriteNew: (path, content, ack) ->
     return unless @sftp
     @sftp.ls path, (err) =>
       if err
         if err.toString().match /Can't ls: ".+" not found$/
-          this.putFile 'ack-writeNew', path, content
+          this.putFile path, content, ack
         else
-          @socket.emit 'ack-writeNew', err.toString(), path
+          ack? err.toString(), path
       else
-        @socket.emit 'ack-writeNew', 'aio:file_exists', path
+        ack? 'aio:file_exists', path
 
-  onUpload: (path, uploadToken) ->
+  onUpload: (path, uploadToken, ack) ->
     return unless @sftp
     upload = app.messageVerifier.verify uploadToken
     if upload && upload.tmpFilePath
       @sftp.put upload.tmpFilePath, path, (err) =>
         fs.unlink upload.tmpFilePath
-        @socket.emit 'ack-upload', err?.toString(), path
+        ack? err?.toString(), path
     else
-      @socket.emit 'ack-upload', 'invalid upload token', path
+      ack? 'invalid upload token', path
 

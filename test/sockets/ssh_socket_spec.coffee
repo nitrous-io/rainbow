@@ -21,15 +21,17 @@ describe 'SSHSocket', ->
     expect(SSHSocket.EVENTS).to.deep.equal ['start', 'd', 'r', 'kill']
 
   describe '#onStart', ->
+    ackSpy = null
+
     beforeEach ->
-      sinon.stub sshSocket.socket, 'emit'
+      ackSpy = sinon.spy()
       sinon.stub Box, 'findById'
 
     afterEach ->
       Box.findById.restore()
 
     doAction = ->
-      sshSocket.onStart 111
+      sshSocket.onStart 111, ackSpy
 
     it 'tries to find a box with a given id', ->
       doAction()
@@ -43,16 +45,16 @@ describe 'SSHSocket', ->
         Box.findById.callsArgWith 2, error
         doAction()
 
-      it 'emits "ack-start" message to the client with the error message', ->
-        expect(sshSocket.socket.emit).to.have.been.calledWith 'ack-start', error.toString()
+      it 'calls ack callback with the error message', ->
+        expect(ackSpy).to.have.been.calledWith error.toString()
 
     context 'when a box with a given id is not found', ->
       beforeEach ->
         Box.findById.callsArgWith 2, null, null
         doAction()
 
-      it 'emits "start" message to the client with the error message', ->
-        expect(sshSocket.socket.emit).to.have.been.calledWith 'ack-start', 'box not found'
+      it 'calls ack callback with the error message', ->
+        expect(ackSpy).to.have.been.calledWith 'box not found'
 
     context 'when box is found', ->
       box = null
@@ -66,8 +68,8 @@ describe 'SSHSocket', ->
           box.owner_id = 1337
           doAction()
 
-        it 'emits "start" message to the client with the error message', ->
-          expect(sshSocket.socket.emit).to.have.been.calledWith 'ack-start', "box doesn't belong to user"
+        it 'calls ack callback with the error message', ->
+          expect(ackSpy).to.have.been.calledWith "box doesn't belong to user"
 
       context 'when box belongs to this user', ->
         beforeEach ->
@@ -79,8 +81,8 @@ describe 'SSHSocket', ->
             sshSocket.pty = sinon.spy()
             doAction()
 
-          it 'emits "start" message to the client with the error message', ->
-            expect(sshSocket.socket.emit).to.have.been.calledWith 'ack-start', 'pty already created'
+          it 'calls ack callback with the error message', ->
+            expect(ackSpy).to.have.been.calledWith 'pty already created'
 
         context 'when a pty session is not yet created', ->
           beforeEach ->
@@ -103,8 +105,8 @@ describe 'SSHSocket', ->
               sshSocket.connectToSSH.callsArgWith 0, error
               doAction()
 
-            it 'emits "start" message to the client with the error message', ->
-              expect(sshSocket.socket.emit).to.have.been.calledWith 'ack-start', error.toString()
+            it 'calls ack callback with the error message', ->
+              expect(ackSpy).to.have.been.calledWith error.toString()
 
   describe '#connectToSSH', ->
     error = cbSpy = null

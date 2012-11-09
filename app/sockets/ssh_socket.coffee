@@ -7,26 +7,26 @@ pty = require 'pty.js'
 module.exports = class SSHSocket extends BaseSocket
   @EVENTS: ['start', 'd', 'r', 'kill']
 
-  onStart: (boxId) ->
+  onStart: (boxId, ack) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
       if err
-        @socket.emit 'ack-start', err.toString()
+        ack? err.toString()
         return
       unless box
-        @socket.emit 'ack-start', 'box not found'
+        ack? 'box not found'
         return
       if box.owner_id != @user.id
-        @socket.emit 'ack-start', "box doesn't belong to user"
+        ack? "box doesn't belong to user"
         return
       if @pty
-        @socket.emit 'ack-start', 'pty already created'
+        ack? 'pty already created'
         return
       @box = box
       this.connectToSSH (err) =>
         if err
-          @socket.emit 'ack-start', err.toString()
+          ack? err.toString()
           return
-        @socket.emit 'ack-start'
+        ack?()
 
   onD: (data) ->
     @pty?.write data

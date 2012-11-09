@@ -6,7 +6,7 @@ app = require '../../app'
 
 module.exports = class SFTPSocket extends BaseSocket
   @SIZE_LIMIT: 2 * 1024 * 1024 # 2 megabytes
-  @EVENTS: ['start', 'list', 'read', 'write', 'writeNew', 'upload']
+  @EVENTS: ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload']
 
   destroy: ->
     super()
@@ -69,16 +69,36 @@ module.exports = class SFTPSocket extends BaseSocket
     return unless @sftp
     this.putFile path, content, ack
 
-  onWriteNew: (path, content, ack) ->
-    return unless @sftp
+  checkIfPathExists: (path, callback) ->
     @sftp.ls path, (err) =>
       if err
         if err.toString().match /Can't ls: ".+" not found$/
-          this.putFile path, content, ack
+          callback false
         else
-          ack? err.toString(), path
+          callback err.toString()
       else
+        callback true
+
+  onWriteNew: (path, content, ack) ->
+    return unless @sftp
+    this.checkIfPathExists path, (exists) =>
+      unless exists
+        this.putFile path, content, ack
+      else if exists == true
         ack? 'aio:file_exists', path
+      else # some random error
+        ack? exists, path
+
+  onMakeDir: (path, ack) ->
+    return unless @sftp
+    this.checkIfPathExists path, (exists) =>
+      unless exists
+        @sftp.mkdir path, (err) =>
+          ack? err?.toString(), path
+      else if exists == true
+        ack? 'aio:dir_exists', path
+      else # some random error
+        ack? exists, path
 
   onUpload: (path, uploadToken, ack) ->
     return unless @sftp

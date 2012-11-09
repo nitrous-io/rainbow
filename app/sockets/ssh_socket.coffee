@@ -47,7 +47,7 @@ module.exports = class SSHSocket extends BaseSocket
         callback 'key pair not found'
         return
 
-      sshHelper = new SSHHelper('action', @box.host, @box.port, keyPair.private_key)
+      sshHelper = new SSHHelper 'action', @box.host, @box.port, keyPair.private_key
       sshHelper.writeKeyFile (err, sshArgs, deleteKeyFile) =>
         if err
           callback err

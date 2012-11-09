@@ -18,7 +18,7 @@ describe 'SFTPSocket', ->
     expect(sftpSocket).to.be.an.instanceof BaseSocket
 
   it 'handles socket events', ->
-    expect(SFTPSocket.EVENTS).to.deep.equal ['start', 'list', 'read', 'write', 'writeNew', 'upload']
+    expect(SFTPSocket.EVENTS).to.deep.equal ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload']
 
   describe '#onStart', ->
     ackSpy = null
@@ -408,6 +408,89 @@ describe 'SFTPSocket', ->
 
         it 'does not run putData command', ->
           expect(sftp.putData).not.to.have.been.called
+
+        it 'calls ack callback with the error', ->
+          expect(ackSpy).to.have.been.calledWith error, 'some/path'
+
+  describe '#onMakeDir', ->
+    ackSpy = null
+
+    beforeEach ->
+      ackSpy = sinon.spy()
+
+    doAction = ->
+      sftpSocket.onMakeDir 'some/path', ackSpy
+
+    context 'when @sftp is not yet initialized', ->
+      beforeEach ->
+        sftpSocket.sftp = null
+
+      it 'does nothing', ->
+        expect(->
+          doAction()
+        ).not.to.throw Error
+
+    context 'when @sftp exists', ->
+      sftp = null
+
+      beforeEach ->
+        sftp = sftpSocket.sftp = new SFTP {}
+        sinon.stub sftp, 'mkdir'
+        sinon.stub sftp, 'ls'
+
+      it 'runs ls command', ->
+        doAction()
+        expect(sftp.ls).to.have.been.calledWith 'some/path'
+
+      context 'when ls returns no error', ->
+        beforeEach ->
+          sftp.ls.callsArgWith 1, null, [ ['some file'] ]
+          doAction()
+
+        it 'does not run mkdir command', ->
+          expect(sftp.mkdir).not.to.have.been.called
+
+        it 'calls ack callback "aio:dir_exists" error', ->
+          expect(ackSpy).to.have.been.calledWith 'aio:dir_exists', 'some/path'
+
+      context 'when ls returns not found error', ->
+        beforeEach ->
+          sftp.ls.callsArgWith 1, '''
+            Couldn't stat remote file: No such file or directory
+            Can't ls: "/home/action/some/path" not found
+          '''
+
+        it 'runs mkdir command', ->
+          doAction()
+          expect(sftp.mkdir).to.have.been.calledWith 'some/path'
+
+        context 'when mkdir command returns error', ->
+          error = new Error 'some error'
+
+          beforeEach ->
+            sftp.mkdir.callsArgWith 1, error
+            doAction()
+
+          it 'calls ack callback with error', ->
+            expect(ackSpy).to.have.been.calledWith error.toString(), 'some/path'
+
+        context 'when mkdir command returns no error', ->
+          beforeEach ->
+            sftp.mkdir.callsArgWith 1, null
+            doAction()
+
+          it 'calls ack callback with no error', ->
+            expect(ackSpy).to.have.been.calledWith undefined, 'some/path'
+
+      context 'when ls returns some other error', ->
+        error = 'File system completely messed up.'
+
+        beforeEach ->
+          sftp.ls.callsArgWith 1, error
+          doAction()
+
+        it 'does not run mkdir command', ->
+          expect(sftp.mkdir).not.to.have.been.called
 
         it 'calls ack callback with the error', ->
           expect(ackSpy).to.have.been.calledWith error, 'some/path'

@@ -2,6 +2,7 @@ SFTPSocket = require '../../app/sockets/sftp_socket'
 FakeSocketIO = require '../support/fake_socket_io'
 BaseSocket = require '../../app/sockets/base_socket'
 KeyPair = require '../../app/models/key_pair'
+{ SSHHelper } = require('action-base')
 Box = require '../../app/models/box'
 app = require '../../app'
 SFTP = require 'sftp.js'
@@ -18,7 +19,7 @@ describe 'SFTPSocket', ->
     expect(sftpSocket).to.be.an.instanceof BaseSocket
 
   it 'handles socket events', ->
-    expect(SFTPSocket.EVENTS).to.deep.equal ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload']
+    expect(SFTPSocket.EVENTS).to.deep.equal ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload', 'delete']
 
   describe '#onStart', ->
     ackSpy = null
@@ -494,6 +495,23 @@ describe 'SFTPSocket', ->
 
         it 'calls ack callback with the error', ->
           expect(ackSpy).to.have.been.calledWith error, 'some/path'
+
+  describe '#onDelete', ->
+    ackSpy = null
+    doAction = -> sftpSocket.onDelete 'some/path', ackSpy
+
+    beforeEach ->
+      ackSpy = sinon.spy()
+      sftpSocket.box = new Box id: 123, host: 'foobar.actionbox.io', port: 2234
+      sinon.stub SSHHelper.prototype, "execCommand"
+
+    afterEach -> SSHHelper.prototype.execCommand.restore()
+
+    it "deletes the path using an ssh connection", ->
+      SSHHelper::execCommand.callsArgWith 1, null, "", ""
+      doAction()
+      expect(ackSpy).to.have.been.called
+      expect(SSHHelper::execCommand).to.have.been.calledWith "rm -rf some/path", sinon.match.func
 
   describe '#onUpload', ->
     ackSpy = null

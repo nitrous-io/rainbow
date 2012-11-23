@@ -1,12 +1,13 @@
 BaseSocket = require './base_socket'
 Box = require '../models/box'
+{ SSHHelper } = require 'action-base'
 SFTP = require 'sftp.js'
 fs = require 'fs'
 app = require '../../app'
 
 module.exports = class SFTPSocket extends BaseSocket
   @SIZE_LIMIT: 2 * 1024 * 1024 # 2 megabytes
-  @EVENTS: ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload']
+  @EVENTS: ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload', 'delete']
 
   destroy: ->
     super()
@@ -15,29 +16,16 @@ module.exports = class SFTPSocket extends BaseSocket
 
   onStart: (boxId, ack) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
-      if err
-        ack? err.toString()
-        return
-      unless box
-        ack? 'box not found'
-        return
-      if box.owner_id != @user.id
-        ack? "box doesn't belong to user"
-        return
-      box.findKeyPair (err, keyPair) =>
-        if err
-          ack? err.toString()
-          return
-        unless keyPair
-          ack? 'key pair not found'
-          return
-
-        @sftp = new SFTP host: box.host, port: box.port, user: 'action', key: keyPair.private_key
-        @sftp.connect (err) =>
-          if err
-            ack? err.toString()
-          else
-            ack?()
+      @box = box
+      return ack? err.toString() if err
+      return ack? 'box not found' unless box
+      return ack? "box doesn't belong to user" if box.owner_id != @user.id
+      @box.findKeyPair (err, keyPair) =>
+        return ack? err.toString() if err
+        return ack? 'key pair not found' unless keyPair
+        @privateKey = keyPair.private_key
+        @sftp = new SFTP host: @box.host, port: @box.port, user: 'action', key: @privateKey
+        @sftp.connect (err) => ack? err?.toString()
 
   onList: (path, ack) ->
     @sftp?.ls path, (err, fileListing) =>
@@ -99,6 +87,11 @@ module.exports = class SFTPSocket extends BaseSocket
         ack? 'aio:dir_exists', path
       else # some random error
         ack? exists, path
+
+  onDelete: (path, ack) ->
+    ssh = new SSHHelper 'action', @box.host, @box.port, @privateKey
+    ssh.execCommand "rm -rf #{path}", (err, stdout, stderr) ->
+      ack? err?.toString()
 
   onUpload: (path, uploadToken, ack) ->
     return unless @sftp

@@ -7,7 +7,7 @@ app = require '../../app'
 
 module.exports = class SFTPSocket extends BaseSocket
   @SIZE_LIMIT: 2 * 1024 * 1024 # 2 megabytes
-  @EVENTS: ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload', 'deleteDir']
+  @EVENTS: ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload', 'deleteDir', 'deleteFile']
 
   destroy: ->
     super()
@@ -92,6 +92,11 @@ module.exports = class SFTPSocket extends BaseSocket
     path = SFTP.escape path
     ssh = new SSHHelper 'action', @box.host, @box.port, @privateKey
     ssh.execCommand "rm -rf #{path}", (err, stdout, stderr) ->
+      ack? err?.toString()
+
+  onDeleteFile: (path, ack) ->
+    return unless @sftp
+    @sftp.rm path, (err) ->
       ack? err?.toString()
 
   onUpload: (path, uploadToken, ack) ->

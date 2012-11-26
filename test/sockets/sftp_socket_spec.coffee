@@ -498,7 +498,7 @@ describe 'SFTPSocket', ->
 
   describe '#onDelete', ->
     ackSpy = null
-    doAction = -> sftpSocket.onDelete 'some/path', ackSpy
+    doAction = (path='some/path') -> sftpSocket.onDelete path, ackSpy
 
     beforeEach ->
       ackSpy = sinon.spy()
@@ -511,7 +511,13 @@ describe 'SFTPSocket', ->
       SSHHelper::execCommand.callsArgWith 1, null, "", ""
       doAction()
       expect(ackSpy).to.have.been.called
-      expect(SSHHelper::execCommand).to.have.been.calledWith "rm -rf some/path", sinon.match.func
+      expect(SSHHelper::execCommand).to.have.been.calledWith "rm -rf 'some/path'", sinon.match.func
+
+    it "encodes path", ->
+      SSHHelper::execCommand.callsArgWith 1, null, "", ""
+      doAction "hello world"
+      expect(ackSpy).to.have.been.called
+      expect(SSHHelper::execCommand).to.have.been.calledWith "rm -rf 'hello world'", sinon.match.func
 
   describe '#onUpload', ->
     ackSpy = null

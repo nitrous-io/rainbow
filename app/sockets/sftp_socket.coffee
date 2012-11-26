@@ -89,6 +89,7 @@ module.exports = class SFTPSocket extends BaseSocket
         ack? exists, path
 
   onDelete: (path, ack) ->
+    path = SFTP.escape path
     ssh = new SSHHelper 'action', @box.host, @box.port, @privateKey
     ssh.execCommand "rm -rf #{path}", (err, stdout, stderr) ->
       ack? err?.toString()

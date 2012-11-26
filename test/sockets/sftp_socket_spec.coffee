@@ -19,7 +19,7 @@ describe 'SFTPSocket', ->
     expect(sftpSocket).to.be.an.instanceof BaseSocket
 
   it 'handles socket events', ->
-    expect(SFTPSocket.EVENTS).to.deep.equal ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload', 'delete']
+    expect(SFTPSocket.EVENTS).to.deep.equal ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload', 'deleteDir']
 
   describe '#onStart', ->
     ackSpy = null
@@ -496,9 +496,9 @@ describe 'SFTPSocket', ->
         it 'calls ack callback with the error', ->
           expect(ackSpy).to.have.been.calledWith error, 'some/path'
 
-  describe '#onDelete', ->
+  describe '#onDeleteDir', ->
     ackSpy = null
-    doAction = (path='some/path') -> sftpSocket.onDelete path, ackSpy
+    doAction = (path='some/path') -> sftpSocket.onDeleteDir path, ackSpy
 
     beforeEach ->
       ackSpy = sinon.spy()

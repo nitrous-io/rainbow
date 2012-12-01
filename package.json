@@ -20,6 +20,7 @@
   , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#546110552d8fe7d9051198419b53ccb20ac20f20"
   , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#31112292ec8d21119b4b29d3d1f0c9e15c64a8de"
   , "airbrake"      : "0.2.x"
+  , "async"         : "0.1.x"
   }
 , "devDependencies": {
     "mocha"        : "1.6.x"

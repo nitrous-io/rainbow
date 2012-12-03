@@ -4,6 +4,7 @@ Box = require '../models/box'
 SFTP = require 'sftp.js'
 fs = require 'fs'
 app = require '../../app'
+A = require 'async'
 
 module.exports = class SFTPSocket extends BaseSocket
   @SIZE_LIMIT: 2 * 1024 * 1024 # 2 megabytes
@@ -15,17 +16,17 @@ module.exports = class SFTPSocket extends BaseSocket
     delete @sftp
 
   onStart: (boxId, ack) ->
-    Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
-      @box = box
-      return ack? err.toString() if err
-      return ack? 'box not found' unless box
-      return ack? "box doesn't belong to user" if box.owner_id != @user.id
-      @box.findKeyPair (err, keyPair) =>
-        return ack? err.toString() if err
-        return ack? 'key pair not found' unless keyPair
-        @privateKey = keyPair.private_key
+    A.waterfall [
+      (cb) => Box.for_user @user.id, boxId, cb
+      (@box, cb) => @box.findKeyPair cb
+      (@keyPair, cb) =>
+	@privateKey = @keyPair.private_key
         @sftp = new SFTP host: @box.host, port: @box.port, user: 'action', key: @privateKey
-        @sftp.connect (err) => ack? err?.toString()
+	@sftp.connect cb
+    ], (err) =>
+      return ack? err.toString() if err
+      return ack? 'key pair not found' unless @keyPair
+      ack?()
 
   onList: (path, ack) ->
     @sftp?.ls path, (err, fileListing) =>

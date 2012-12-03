@@ -3,30 +3,18 @@ BaseSocket = require './base_socket'
 Box = require '../models/box'
 SSHHelper = require('action-base').SSHHelper
 pty = require 'pty.js'
+A = require 'async'
 
 module.exports = class SSHSocket extends BaseSocket
   @EVENTS: ['start', 'd', 'r', 'kill']
 
   onStart: (boxId, ack) ->
-    Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
-      if err
-        ack? err.toString()
-        return
-      unless box
-        ack? 'box not found'
-        return
-      if box.owner_id != @user.id
-        ack? "box doesn't belong to user"
-        return
-      if @pty
-        ack? 'pty already created'
-        return
-      @box = box
-      this.connectToSSH (err) =>
-        if err
-          ack? err.toString()
-          return
-        ack?()
+    A.waterfall [
+      (cb) => Box.for_user @user.id, boxId, cb
+      (@box, cb) =>
+	return cb 'pty already created' if @pty
+	@connectToSSH cb
+    ], (err) -> ack? err?.toString()
 
   onD: (data) ->
     @pty?.write data

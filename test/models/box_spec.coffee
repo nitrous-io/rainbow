@@ -12,18 +12,25 @@ describe 'Box', ->
     expect(Box.tableName).to.equal 'boxes'
 
   describe '#findKeyPair', ->
+    box_id = key_pair_id = null
+
     beforeEach (done) ->
       A.waterfall [
           (cb) -> F.flush cb
           (cb) -> F.box name: "aaaa", cb
-          (@box_id, cb) => F.key_pair box_id: @box_id, cb
-        ], (err, @key_pair_id) => done()
+          (id, cb) =>
+            box_id = id
+            F.key_pair box_id: id, cb
+        ], (err, id) =>
+          key_pair_id = id
+          done()
 
     afterEach (done) -> F.flush done
 
     it 'finds a key pair object for this box', (done) ->
-      @box = new Box(id: @box_id)
-      @box.findKeyPair (err, key_pair) =>
-        expect(key_pair.box_id).to.eq(@box_id)
+      box = new Box(id: box_id)
+      box.findKeyPair (err, key_pair) =>
+        expect(key_pair.id).to.eq(key_pair_id)
+        expect(key_pair.box_id).to.eq(box_id)
         expect(key_pair.public_key).to.eq("public-key")
         done()

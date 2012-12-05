@@ -12,7 +12,7 @@ module.exports = class Box extends BaseModel
 Box.forUser = (boxId, userId, callback) ->
   A.waterfall [
     (cb) -> BoxAdmin.isAllowed boxId, userId, cb
-    (isAllowed, cb) -> Box.findOne "id = $1", [234], 'id, owner_id, host, port', cb
+    (isAllowed, cb) -> Box.findOne "id = $1", [boxId], 'id, owner_id, host, port', cb
   ], (err, res) ->
     return callback err if err
     return callback "box not found" unless res

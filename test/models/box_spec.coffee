@@ -43,33 +43,33 @@ describe 'Box', ->
     it 'determines if user is collaborator of the box', (done) ->
       Box.forUser boxId, userId, cbSpy
       asyncDone done, ->
-	expect(BoxAdmin.isAllowed).to.be.calledWith 123, 234, sinon.match.any
+        expect(BoxAdmin.isAllowed).to.be.calledWith 123, 234, sinon.match.any
 
     context 'when user is collaborator of the box', ->
       beforeEach (done) ->
-	Box.forUser boxId, userId, cbSpy
-	asyncDone done, ->
-	  expect(BoxAdmin.isAllowed).to.be.called
-	  BoxAdmin.isAllowed.callArgWith 2, null, true
+        Box.forUser boxId, userId, cbSpy
+        asyncDone done, ->
+          expect(BoxAdmin.isAllowed).to.be.called
+          BoxAdmin.isAllowed.callArgWith 2, null, true
 
       it 'tries to get the box out', (done) ->
-	asyncDone done, ->
-	  expect(Box.findOne).to.be.calledWith "id = $1", [234], 'id, owner_id, host, port', sinon.match.any
+        asyncDone done, ->
+          expect(Box.findOne).to.be.calledWith "id = $1", [boxId], 'id, owner_id, host, port', sinon.match.any
 
       it 'returns the box when it exists', (done) ->
-	boxAttr = {id: boxId, owner_id: userId, host: "127.0.0.1", port: "9999" }
-	asyncDone done, ->
-	  Box.findOne.callArgWith 3, null, new Box(boxAttr)
-	  expect(cbSpy).to.be.calledWith(null, sinon.match(boxAttr))
+        boxAttr = {id: boxId, owner_id: userId, host: "127.0.0.1", port: "9999" }
+        asyncDone done, ->
+          Box.findOne.callArgWith 3, null, new Box(boxAttr)
+          expect(cbSpy).to.be.calledWith(null, sinon.match(boxAttr))
 
       it 'returns nothing when the box does not exists', (done) ->
-	Box.forUser boxId, userId, cbSpy
-	asyncDone done, ->
-	  Box.findOne.callArgWith 3, null, null
-	  expect(cbSpy).to.be.calledWith("box not found")
+        Box.forUser boxId, userId, cbSpy
+        asyncDone done, ->
+          Box.findOne.callArgWith 3, null, null
+          expect(cbSpy).to.be.calledWith("box not found")
 
     it 'returns nothing when user is not collaborator of the box', (done) ->
       Box.forUser boxId, userId, cbSpy
       asyncDone done, ->
-	BoxAdmin.isAllowed.callArgWith 2, "not allowed", false
-	expect(cbSpy).to.be.calledWith "not allowed"
+        BoxAdmin.isAllowed.callArgWith 2, "not allowed", false
+        expect(cbSpy).to.be.calledWith "not allowed"

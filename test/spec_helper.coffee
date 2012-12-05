@@ -31,4 +31,4 @@ global.asyncDone = ->
 
 # create a sanbox to ease the creation/restoration of fakes
 global.sandbox = sinon.sandbox.create()
-afterEach -> sandbox.restore()
+afterEach -> global.sandbox.restore()

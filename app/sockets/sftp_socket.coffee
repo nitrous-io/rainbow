@@ -17,16 +17,14 @@ module.exports = class SFTPSocket extends BaseSocket
 
   onStart: (boxId, ack) ->
     A.waterfall [
-      (cb) => Box.for_user @user.id, boxId, cb
+      (cb) => Box.forUser boxId, @user.id, cb
       (@box, cb) => @box.findKeyPair cb
-      (@keyPair, cb) =>
-	@privateKey = @keyPair.private_key
-        @sftp = new SFTP host: @box.host, port: @box.port, user: 'action', key: @privateKey
-	@sftp.connect cb
-    ], (err) =>
+    ], (err, @keyPair) =>
       return ack? err.toString() if err
       return ack? 'key pair not found' unless @keyPair
-      ack?()
+      @privateKey = @keyPair.private_key
+      @sftp = new SFTP host: @box.host, port: @box.port, user: 'action', key: @privateKey
+      @sftp.connect ack
 
   onList: (path, ack) ->
     @sftp?.ls path, (err, fileListing) =>

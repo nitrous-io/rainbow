@@ -22,91 +22,43 @@ describe 'SSHSocket', ->
 
   describe '#onStart', ->
     ackSpy = null
+    boxId = 111
+    userId = 222
+    doAction = -> sshSocket.onStart boxId, ackSpy
 
     beforeEach ->
-      ackSpy = sinon.spy()
-      sinon.stub Box, 'findById'
+      ackSpy = sandbox.spy()
+      sandbox.stub Box, 'forUser'
+      sandbox.stub sshSocket, "user", {id: userId}
 
-    afterEach ->
-      Box.findById.restore()
-
-    doAction = ->
-      sshSocket.onStart 111, ackSpy
-
-    it 'tries to find a box with a given id', ->
+    it 'tries to get the specified box that current user can work on', (done) ->
       doAction()
-      expect(Box.findById).to.have.been.calledWith 111, ['owner_id', 'host', 'port']
+      asyncDone done, ->
+	expect(Box.forUser).to.have.been.calledWith boxId, userId, sinon.match.func
 
-    context 'when finding a box with a given id fails with error', ->
-      error = null
-
-      beforeEach ->
-        error = new Error 'some error'
-        Box.findById.callsArgWith 2, error
-        doAction()
-
-      it 'calls ack callback with the error message', ->
-        expect(ackSpy).to.have.been.calledWith error.toString()
-
-    context 'when a box with a given id is not found', ->
-      beforeEach ->
-        Box.findById.callsArgWith 2, null, null
-        doAction()
-
-      it 'calls ack callback with the error message', ->
-        expect(ackSpy).to.have.been.calledWith 'box not found'
+    it 'calls ack callback with the error message when it cannot retrieves the box', (done) ->
+      doAction()
+      asyncDone done, ->
+	Box.forUser.callArgWith 2, "box not found", null
+	expect(ackSpy).to.have.been.calledWith "box not found"
 
     context 'when box is found', ->
       box = null
 
-      beforeEach ->
+      beforeEach (done) ->
         box = new Box id: 123, host: 'foobar.action.io', port: 2234
-        Box.findById.callsArgWith 2, null, box
+	sandbox.stub sshSocket, 'connectToSSH'
+	doAction()
+	asyncDone done, -> Box.forUser.callArgWith 2, null, box
 
-      context 'when the box does not belong to this user', ->
-        beforeEach ->
-          box.owner_id = 1337
-          doAction()
+      it 'tries to connect to ssh', (done) ->
+	asyncDone done, ->
+	  expect(sshSocket.connectToSSH).to.have.been.called
 
-        it 'calls ack callback with the error message', ->
-          expect(ackSpy).to.have.been.calledWith "box doesn't belong to user"
-
-      context 'when box belongs to this user', ->
-        beforeEach ->
-          expect(sshSocket.user.id).not.to.be.null
-          box.owner_id = sshSocket.user.id
-
-        context 'when a pty session is already created', ->
-          beforeEach ->
-            sshSocket.pty = sinon.spy()
-            doAction()
-
-          it 'calls ack callback with the error message', ->
-            expect(ackSpy).to.have.been.calledWith 'pty already created'
-
-        context 'when a pty session is not yet created', ->
-          beforeEach ->
-            sshSocket.pty = null
-            sinon.stub sshSocket, 'connectToSSH'
-
-          it 'assigns the box to @box', ->
-            doAction()
-            expect(sshSocket.box).to.equal box
-
-          it 'connects to SSH', ->
-            doAction()
-            expect(sshSocket.connectToSSH).to.have.been.called
-
-          context 'when connectToSSH fails with error', ->
-            error = null
-
-            beforeEach ->
-              error = new Error 'some ssh error'
-              sshSocket.connectToSSH.callsArgWith 0, error
-              doAction()
-
-            it 'calls ack callback with the error message', ->
-              expect(ackSpy).to.have.been.calledWith error.toString()
+      it 'calls ack with err when connectToSSH fails', (done) ->
+	asyncDone done, ->
+	  sshSocket.connectToSSH.callArgWith 0, "not connected"
+	  expect(ackSpy).to.have.been.calledWith "not connected"
 
   describe '#connectToSSH', ->
     error = cbSpy = null
@@ -118,6 +70,12 @@ describe 'SSHSocket', ->
 
     doAction = ->
       sshSocket.connectToSSH cbSpy
+
+    it 'calls ack callback with the error message when the pty session is already created', ->
+      sshSocket.pty = "ptysocket"
+      doAction()
+      expect(cbSpy).to.be.calledWith "pty already created"
+      sshSocket.pty = undefined
 
     context "when finding the box's key pair fails with error", ->
       beforeEach ->

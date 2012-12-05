@@ -10,10 +10,8 @@ module.exports = class SSHSocket extends BaseSocket
 
   onStart: (boxId, ack) ->
     A.waterfall [
-      (cb) => Box.for_user @user.id, boxId, cb
-      (@box, cb) =>
-	return cb 'pty already created' if @pty
-	@connectToSSH cb
+      (cb) => Box.forUser boxId, @user.id, cb
+      (@box, cb) => @connectToSSH cb
     ], (err) -> ack? err?.toString()
 
   onD: (data) ->
@@ -27,6 +25,7 @@ module.exports = class SSHSocket extends BaseSocket
     this.destroy()
 
   connectToSSH: (callback) ->
+    return callback("pty already created") if @pty
     @box?.findKeyPair (err, keyPair) =>
       if err
         callback err

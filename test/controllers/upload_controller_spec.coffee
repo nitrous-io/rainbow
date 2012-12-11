@@ -1,7 +1,6 @@
 UploadController = require '../../app/controllers/upload_controller'
 ApplicationController = require '../../app/controllers/application_controller'
 User = require '../../app/models/user'
-tmp = require 'tmp'
 app = require '../../app'
 
 hasNoCacheHeaders = (response) ->

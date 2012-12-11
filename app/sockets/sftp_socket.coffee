@@ -1,6 +1,6 @@
 BaseSocket = require './base_socket'
 Box = require '../models/box'
-{ SSHHelper } = require 'action-base'
+SSHHelper = require('action-base').SSHHelper
 SFTP = require 'sftp.js'
 fs = require 'fs'
 app = require '../../app'

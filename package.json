@@ -18,6 +18,7 @@
   , "winston"       : "0.6.x"
   , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#5baabccbf8c1ccc28de7199a7f9881ab684ce911"
   , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#f7ec11a07a25031af720b29797933b716223fdb5"
+  , "redis"         : "0.8.x"
   , "airbrake"      : "0.2.x"
   }
 , "devDependencies": {

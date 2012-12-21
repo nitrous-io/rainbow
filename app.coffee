@@ -47,18 +47,12 @@ createRedisClient = (settings) ->
   client
 
 if require.main == module || require.main.filename.match /boot\.js/
-  server = app.listen(process.env.PORT || 4000)
-
-  unless address = server.address()
-    logger.info 'Could not start Rainbow!'
-    return
-
-  logger.info "Rainbow listening on port #{address.port} in #{env} mode"
-
   # socket.io
   socketIO = require 'socket.io'
+  http = require 'http'
   RedisStore = require 'socket.io/lib/stores/redis'
-  app.io = io = socketIO.listen(server)
+  server = http.createServer(app)
+  io = socketIO.listen(server)
 
   io.configure ->
     # create redis client for socket.io
@@ -75,3 +69,24 @@ if require.main == module || require.main.filename.match /boot\.js/
 
   require('./app/sockets/ssh_socket').init io, '/ws/ssh'
   require('./app/sockets/sftp_socket' ).init io, '/ws/sftp'
+
+  # bootstrap cluster2
+  Cluster = require 'cluster2'
+  cluster = new Cluster
+    port: (process.env.PORT || 4000)
+    monHost: app.settings.monHost
+    monPort: app.settings.monPort
+
+  cluster.on 'died', (pid) ->
+    logger.info "Rainbow worker #{pid} died"
+  cluster.on 'forked', (pid) ->
+    logger.info "Rainbow worker #{pid} forked"
+  cluster.on 'SIGKILL', ->
+    logger.info "Rainbow got SIGKILL"
+  cluster.on 'SIGTERM', ->
+    logger.info "Rainbow got SIGTERM - shutting down"
+  cluster.on 'SIGINT', ->
+    logger.info "Rainbow got SIGINT"
+
+  cluster.listen (cb) ->
+    cb server

@@ -1,0 +1,18 @@
+{
+  "name": "benchmark-rainbow"
+, "version": "0.0.1"
+, "private": true
+, "main": "./app"
+, "dependencies": {
+    "coffee-script"    : "1.3.x"
+  , "socket.io"        : "0.9.11"
+  , "socket.io-client" : "0.9.11"
+  , "xmlhttprequest"   : "1.4.2"
+  , "ws"               : "0.4.x"
+  , "action-base"      : "git+ssh://git@github.com:action-io/action-base.git#f7ec11a07a25031af720b29797933b716223fdb5"
+  }
+, "engines": {
+    "node" : "0.8.x"
+  , "npm"  : "1.1.x"
+  }
+}

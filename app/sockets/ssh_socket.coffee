@@ -3,6 +3,7 @@ BaseSocket = require './base_socket'
 Box = require '../models/box'
 SSHHelper = require('action-base').SSHHelper
 pty = require 'pty.js'
+metrics = require '../lib/metrics'
 
 module.exports = class SSHSocket extends BaseSocket
   @EVENTS: ['start', 'd', 'r', 'kill']
@@ -23,6 +24,7 @@ module.exports = class SSHSocket extends BaseSocket
         return
       @box = box
       this.connectToSSH (err) =>
+        metrics.increment_with_error "ssh.start", err
         if err
           ack? err.toString()
           return

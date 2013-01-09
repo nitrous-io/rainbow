@@ -10,6 +10,13 @@ class Metrics extends Lynx
   timing: (stat, duration, sampleRate) -> @metrics.timing "#{@prefix}.#{stat}", duration, sampleRate
   gauge: (stat, value, sampleRate)     -> @metrics.gauge "#{@prefix}.#{stat}", value, sampleRate
   set: (stat, value, sampleRate)       -> @metrics.set "#{@prefix}.#{stat}", value, sampleRate
+  # if err is specified in the caller, then we will append error or success
+  # depends on the value of `err`, otherwise, just increment stat
+  increment_with_error: (stat, err) ->
+    if arguments.length == 2
+      stat = if err then "#{stat}.error" else "#{stat}.success"
+    this.increment stat
+
 
 host = process.env.STATSD_HOST
 port = process.env.STATSD_PORT

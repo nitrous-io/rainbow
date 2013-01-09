@@ -1,6 +1,7 @@
 _ = require 'underscore'
 cookie = require 'cookie'
 User = require '../models/user'
+metrics = require '../lib/metrics'
 
 module.exports = class BaseSocket
   @EVENTS: []
@@ -40,8 +41,10 @@ BaseSocket.authorize = (handshake, accept) ->
   data.cookies = cookie.parse handshake.headers.cookie
   User.verifyUserSession data.cookies['_aio_session'], (err, user) ->
     if err || !user
+      metrics.increment 'user_session.invalid'
       accept('invalid user session', false)
       return
     data.user = user
+    metrics.increment 'user_session.valid'
     accept(null, true)
 

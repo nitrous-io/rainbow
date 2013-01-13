@@ -1,12 +1,12 @@
-SFTPSocket = require '../../app/sockets/sftp_socket'
-FakeSocketIO = require '../support/fake_socket_io'
-BaseSocket = require '../../app/sockets/base_socket'
-KeyPair = require '../../app/models/key_pair'
+SFTPSocket    = require '../../app/sockets/sftp_socket'
+FakeSocketIO  = require '../support/fake_socket_io'
+BaseSocket    = require '../../app/sockets/base_socket'
+KeyPair       = require '../../app/models/key_pair'
 { SSHHelper } = require('action-base')
-Box = require '../../app/models/box'
-app = require '../../app'
-SFTP = require 'sftp.js'
-fs = require 'fs'
+Box           = require '../../app/models/box'
+app           = require '../../app'
+SFTP          = require 'sftp.js'
+fs            = require 'fs'
 
 describe 'SFTPSocket', ->
   sftpSocket = io = null
@@ -23,124 +23,87 @@ describe 'SFTPSocket', ->
 
   describe '#onStart', ->
     ackSpy = null
+    boxId = 111
+    userId = 222
+    doAction = -> sftpSocket.onStart boxId, ackSpy
 
     beforeEach ->
-      sinon.stub Box, 'findById'
-      ackSpy = sinon.spy()
+      sandbox.stub Box, 'forUser'
+      sandbox.stub sftpSocket, "user", {id: userId}
+      ackSpy = sandbox.spy()
 
-    afterEach ->
-      Box.findById.restore()
-
-    doAction = ->
-      sftpSocket.onStart 111, ackSpy
-
-    it 'tries to find a box with a given id', ->
+    it 'tries to get the specified box that current user can work on', (done) ->
       doAction()
-      expect(Box.findById).to.have.been.calledWith 111, ['owner_id', 'host', 'port']
+      asyncDone done, ->
+	expect(Box.forUser).to.have.been.calledWith boxId, userId, sinon.match.func
 
-    context 'when finding a box with a given id fails with error', ->
-      error = null
-
-      beforeEach ->
-        error = new Error 'some error'
-        Box.findById.callsArgWith 2, error
-        doAction()
-
-      it 'calls ack callback with the error message', ->
-        expect(ackSpy).to.have.been.calledWith error.toString()
-
-    context 'when a box with a given id is not found', ->
-      beforeEach ->
-        Box.findById.callsArgWith 2, null, null
-        doAction()
-
-      it 'calls ack callback with the error message', ->
-        expect(ackSpy).to.have.been.calledWith 'box not found'
+    it 'calls ack callback with the error message when it cannot retrieves the box', (done) ->
+      doAction()
+      asyncDone done, ->
+	Box.forUser.callArgWith 2, "box not found", null
+	expect(ackSpy).to.have.been.calledWith "box not found"
 
     context 'when box is found', ->
       box = null
 
       beforeEach ->
         box = new Box id: 123, host: 'foobar.action.io', port: 2234
-        Box.findById.callsArgWith 2, null, box
+	sandbox.stub box, 'findKeyPair'
 
-      context 'when the box does not belong to this user', ->
-        beforeEach ->
-          box.owner_id = 1337
-          doAction()
-
-        it 'calls ack callback with the error message', ->
-          expect(ackSpy).to.have.been.calledWith "box doesn't belong to user"
-
-      context 'when box belongs to this user', ->
-        beforeEach ->
-          expect(sftpSocket.user.id).not.to.be.null
-          box.owner_id = sftpSocket.user.id
-
-        context 'when a keypair for the box is not found', ->
-          beforeEach ->
-            sinon.stub box, 'findKeyPair'
-            box.findKeyPair.yields null, null
-            doAction()
-
-          it 'calls ack callback with the error message', ->
+      it 'calls ack callback with error message when the keypair is not found', (done) ->
+	doAction()
+	asyncDone ->
+	  box.findKeyPair.yields null, null
+	  Box.forUser.callArgWith 2, null, box
+	  asyncDone done, ->
             expect(ackSpy).to.have.been.calledWith 'key pair not found'
 
-        context 'when there was an error finding the keypair', ->
-          error = null
+      it 'calls ack callback with error message when there was error finding the keypair', (done) ->
+	doAction()
+	asyncDone ->
+	  box.findKeyPair.yields 'some error', null
+	  Box.forUser.callArgWith 2, null, box
+	  asyncDone done, ->
+	    expect(ackSpy).to.have.been.calledWith 'some error'
 
-          beforeEach ->
-            error = new Error 'some error'
-            sinon.stub box, 'findKeyPair'
-            box.findKeyPair.yields error, null
-            doAction()
+      context 'when a keypair for the box is found', ->
+	keyPair = null
 
-          it 'calls ack callback with the error message', ->
-            expect(ackSpy).to.have.been.calledWith error.toString()
+	beforeEach ->
+	  keyPair = new KeyPair
+	  keyPair.__defineGetter__ 'private_key', -> 'some private key'
 
-        context 'when a keypair for the box is found', ->
-          keyPair = null
-
-          beforeEach ->
-            keyPair = new KeyPair
-            keyPair.__defineGetter__ 'private_key', -> 'some private key'
-            sinon.stub box, 'findKeyPair'
+	it "instantiates an SFTP object with the box's host, port and private key", (done) ->
+	  doAction()
+	  asyncDone ->
             box.findKeyPair.yields null, keyPair
+	    Box.forUser.callArgWith 2, null, box
+	    asyncDone done, ->
+	      sftp = sftpSocket.sftp
+	      expect(sftp).to.be.an.instanceOf SFTP
+	      expect(sftp.host).to.equal 'foobar.action.io'
+	      expect(sftp.port).to.equal 2234
+	      expect(sftp.key).to.equal 'some private key'
 
-          it "instantiates an SFTP object with the box's host, port and private key", ->
-            doAction()
-            sftp = sftpSocket.sftp
-            expect(sftp).to.be.an.instanceOf SFTP
-            expect(sftp.host).to.equal 'foobar.action.io'
-            expect(sftp.port).to.equal 2234
-            expect(sftp.key).to.equal 'some private key'
+	it 'calls callback with no error when sftp connection is made', (done) ->
+	  sandbox.stub SFTP.prototype, 'connect'
+	  SFTP::connect.yields null
+	  doAction()
+	  asyncDone ->
+	    box.findKeyPair.yields null, keyPair
+	    Box.forUser.callArgWith 2, null, box
+	    asyncDone done, ->
+	      expect(ackSpy).to.have.been.calledWith null
 
-          context 'when sftp connection is made', ->
-            beforeEach ->
-              sinon.stub SFTP.prototype, 'connect'
-              SFTP::connect.yields null
-              doAction()
-
-            afterEach ->
-              SFTP::connect.restore()
-
-            it 'calls ack callback with no error', ->
-              expect(ackSpy).to.have.been.calledWith undefined
-
-          context 'when it fails to connect to sftp', ->
-            error = null
-
-            beforeEach ->
-              sinon.stub SFTP.prototype, 'connect'
-              error = new Error 'some sftp connection error'
-              SFTP::connect.yields error
-              doAction()
-
-            afterEach ->
-              SFTP::connect.restore()
-
-            it 'calls ack callback with error', ->
-              expect(ackSpy).to.have.been.calledWith error.toString()
+	it 'calls callback with error when it fails to connect to sftp', (done) ->
+	  sandbox.stub SFTP.prototype, 'connect'
+	  SFTP::connect.yields 'some sftp connection error'
+	  doAction()
+	  asyncDone ->
+	    box.findKeyPair.yields null, keyPair
+	    Box.forUser.callArgWith 2, null, box
+	    asyncDone done, ->
+	      expect(ackSpy).to.have.been.calledWith 'some sftp connection error'
 
   describe '#onList', ->
     ackSpy = null

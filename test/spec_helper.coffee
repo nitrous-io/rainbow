@@ -1,3 +1,5 @@
+_ = require 'underscore'
+
 process.env.NODE_ENV = 'test'
 
 global.context = global.describe
@@ -18,3 +20,15 @@ global.chai.use sinonChai
 
 process.env.SECRET_TOKEN = 'secret_token'
 
+# accepts either callback or done, callback
+# arguments will be called in reversed orders when nextTick triggered
+# Example
+#   asyncDone -> console.log "HERE"
+#   asyncDone done, -> console.log "HERE"
+global.asyncDone = ->
+  args = _.values arguments
+  process.nextTick -> func() for func in args.reverse()
+
+# create a sanbox to ease the creation/restoration of fakes
+global.sandbox = sinon.sandbox.create()
+afterEach -> global.sandbox.restore()

@@ -1,4 +1,5 @@
 process.env.NODE_ENV ?= 'development'
+process.title = "rainbox"
 
 express = require 'express'
 module.exports = app = express()
@@ -33,6 +34,10 @@ else
     console.log err
     console.log err.message
     console.log err.stack
+
+# send uptime/memory usage data to statsd
+Repoman = require('repoman')
+(new Repoman).collect()
 
 logger = require './app/lib/logger'
 if require.main == module || require.main.filename.match /boot\.js/

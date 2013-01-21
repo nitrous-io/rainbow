@@ -10,7 +10,6 @@ module.exports = class SSHSocket extends BaseSocket
   @EVENTS: ['start', 'd', 'r', 'kill']
 
   onStart: (boxId, ack) ->
-    repoman.reportLag(process.env.PORT)
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
       if err
         ack? err.toString()
@@ -32,7 +31,6 @@ module.exports = class SSHSocket extends BaseSocket
         ack?()
 
   onD: (data) ->
-    repoman.reportLag(process.env.PORT)
     @pty?.write data
 
   onR: (width, height) ->
@@ -75,7 +73,6 @@ module.exports = class SSHSocket extends BaseSocket
     delete @box
 
   onPTYData: (data) ->
-    repoman.reportLag(process.env.PORT)
     @socket?.emit 'p', data
 
   onPTYClose: (hadError) ->

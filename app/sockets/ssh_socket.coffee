@@ -2,12 +2,15 @@ _ = require 'underscore'
 BaseSocket = require './base_socket'
 Box = require '../models/box'
 SSHHelper = require('action-base').SSHHelper
+Repoman = require('repoman')
 pty = require 'pty.js'
+repoman = new Repoman()
 
 module.exports = class SSHSocket extends BaseSocket
   @EVENTS: ['start', 'd', 'r', 'kill']
 
   onStart: (boxId, ack) ->
+    repoman.reportLag(process.env.PORT)
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
       if err
         ack? err.toString()
@@ -29,6 +32,7 @@ module.exports = class SSHSocket extends BaseSocket
         ack?()
 
   onD: (data) ->
+    repoman.reportLag(process.env.PORT)
     @pty?.write data
 
   onR: (width, height) ->
@@ -71,6 +75,7 @@ module.exports = class SSHSocket extends BaseSocket
     delete @box
 
   onPTYData: (data) ->
+    repoman.reportLag(process.env.PORT)
     @socket?.emit 'p', data
 
   onPTYClose: (hadError) ->

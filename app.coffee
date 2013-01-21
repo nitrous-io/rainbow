@@ -1,5 +1,5 @@
 process.env.NODE_ENV ?= 'development'
-process.title = "rainbox"
+process.title = "rainbow"
 
 express = require 'express'
 module.exports = app = express()

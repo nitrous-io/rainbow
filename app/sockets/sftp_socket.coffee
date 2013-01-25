@@ -44,10 +44,14 @@ module.exports = class SFTPSocket extends BaseSocket
             else
               if fileType.match /text|very short|empty/
                 ack? null, path, 'text',  fileBuffer?.toString('utf8')
-              else if fileType.match /image/
-                ack? null, path, 'image', fileBuffer?.toString('base64')
+              else if fileType.match /PNG/
+                ack? null, path, 'image/png', fileBuffer?.toString('base64')
+              else if fileType.match /JPEG/
+                ack? null, path, 'image/jpg', fileBuffer?.toString('base64')
+              else if fileType.match /GIF/
+                ack? null, path, 'image/gif', fileBuffer?.toString('base64')
               else if fileType.match /icon/
-                ack? null, path, 'image', fileBuffer?.toString('base64')
+                ack? null, path, 'image/x-icon', fileBuffer?.toString('base64')
               else
                 ack? 'aio:not_text_file', path
         else

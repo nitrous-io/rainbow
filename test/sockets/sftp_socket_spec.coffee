@@ -259,12 +259,28 @@ describe 'SFTPSocket', ->
                 sftp.get.callsArgWith 1, null, fileBuffer, 'some/path: Ruby module source, ASCII text'
                 doAction()
 
-              it 'calls ack callback with the file buffer', ->
-                expect(ackSpy).to.have.been.calledWith null, 'some/path', 'some text'
+              it 'calls ack callback with the file type and buffer', ->
+                expect(ackSpy).to.have.been.calledWith null, 'some/path', 'text', 'some text'
 
-            context 'when the file type is not text file', ->
+            context 'when the file type is image file', ->
               beforeEach ->
                 sftp.get.callsArgWith 1, null, fileBuffer, 'some/path: PNG image data, 128 x 128, 8-bit/color RGBA, non-interlaced'
+                doAction()
+
+              it 'calls ack callback with the file type and buffer', ->
+                expect(ackSpy).to.have.been.calledWith null, 'some/path', 'image', 'c29tZSB0ZXh0'
+
+            context 'when the file type is icon file', ->
+              beforeEach ->
+                sftp.get.callsArgWith 1, null, fileBuffer, 'some/path: MS Windows icon resource - 1 icon'
+                doAction()
+
+              it 'calls ack callback with the file type and buffer', ->
+                expect(ackSpy).to.have.been.calledWith null, 'some/path', 'image', 'c29tZSB0ZXh0'
+
+            context 'when the file type is not text, image or icon file', ->
+              beforeEach ->
+                sftp.get.callsArgWith 1, null, fileBuffer, 'some/path: Zip archive data, at least v1.0 to extract'
                 doAction()
 
               it 'calls ack callback with "aio:not_text_file" error', ->

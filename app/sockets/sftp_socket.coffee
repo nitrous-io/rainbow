@@ -9,7 +9,7 @@ app = require '../../app'
 
 module.exports = class SFTPSocket extends BaseSocket
   @SIZE_LIMIT: 2 * 1024 * 1024 # 2 megabytes
-  @EVENTS: ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload', 'deleteDir', 'deleteFile']
+  @EVENTS: ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload', 'deleteDir', 'deleteFile', 'rename']
 
   destroy: ->
     super()
@@ -103,7 +103,7 @@ module.exports = class SFTPSocket extends BaseSocket
   
   onRename: (path, newPath, ack) ->
     return unless @sftp
-    @sftp.mv path, newPath, (err) =>
+    @sftp.rename path, newPath, (err) =>
       ack? err?.toString(), path
 
   onUpload: (path, uploadToken, ack) ->

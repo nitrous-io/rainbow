@@ -21,7 +21,7 @@ describe 'SFTPSocket', ->
     expect(sftpSocket).to.be.an.instanceof BaseSocket
 
   it 'handles socket events', ->
-    expect(SFTPSocket.EVENTS).to.deep.equal ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload', 'deleteDir', 'deleteFile']
+    expect(SFTPSocket.EVENTS).to.deep.equal ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload', 'deleteDir', 'deleteFile', 'rename']
 
   describe '#onStart', ->
     ackSpy = null
@@ -574,20 +574,20 @@ describe 'SFTPSocket', ->
 
       beforeEach ->
         sftp = sftpSocket.sftp = new SFTP {}
-        sinon.stub sftp, 'mv'
+        sinon.stub sftp, 'rename'
 
-      it 'renames the file using mv command', ->
+      it 'renames the file using rename command', ->
         doAction()
-        expect(sftp.mv).to.have.been.calledWith 'some/path', 'some/newpath'
+        expect(sftp.rename).to.have.been.calledWith 'some/path', 'some/newpath'
 
-      it 'calls ack callback with error when mv returns error', ->
+      it 'calls ack callback with error when rename returns error', ->
         error = new Error 'some error'
-        sftp.mv.callsArgWith 2, error
+        sftp.rename.callsArgWith 2, error
         doAction()
         expect(ackSpy).to.have.been.calledWith error.toString()
 
       it 'calls ack callback with no error', ->
-        sftp.mv.callsArgWith 2, null
+        sftp.rename.callsArgWith 2, null
         doAction()
         expect(ackSpy).to.have.been.calledWith undefined
 

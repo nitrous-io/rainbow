@@ -556,9 +556,9 @@ describe 'SFTPSocket', ->
         doAction()
         expect(ackSpy).to.have.been.calledWith undefined
 
-  describe '#onMove', ->
+  describe '#onRename', ->
     ackSpy = null
-    doAction = (path='some/path', newPath='some/newpath') -> sftpSocket.onMove path, newPath, ackSpy
+    doAction = (path='some/path', newPath='some/newpath') -> sftpSocket.onRename path, newPath, ackSpy
 
     beforeEach ->
       ackSpy = sinon.spy()
@@ -576,7 +576,7 @@ describe 'SFTPSocket', ->
         sftp = sftpSocket.sftp = new SFTP {}
         sinon.stub sftp, 'mv'
 
-      it 'moves the file using mv command', ->
+      it 'renames the file using mv command', ->
         doAction()
         expect(sftp.mv).to.have.been.calledWith 'some/path', 'some/newpath'
 

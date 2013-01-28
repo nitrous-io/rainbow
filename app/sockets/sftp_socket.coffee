@@ -101,7 +101,7 @@ module.exports = class SFTPSocket extends BaseSocket
     @sftp.rm path, (err) ->
       ack? err?.toString()
   
-  onMove: (path, newPath, ack) ->
+  onRename: (path, newPath, ack) ->
     return unless @sftp
     @sftp.mv path, newPath, (err) =>
       ack? err?.toString(), path

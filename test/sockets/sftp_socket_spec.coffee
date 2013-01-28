@@ -5,7 +5,9 @@ KeyPair = require '../../app/models/key_pair'
 { SSHHelper } = require('action-base')
 Box = require '../../app/models/box'
 app = require '../../app'
-SFTP = require 'sftp.js'
+#TODO: Revert this before merging
+#SFTP = require 'sftp.js'
+SFTP = require '../../../sftp.js/index'
 fs = require 'fs'
 
 describe 'SFTPSocket', ->
@@ -551,6 +553,41 @@ describe 'SFTPSocket', ->
 
       it 'calls ack callback with no error', ->
         sftp.rm.callsArgWith 1, null
+        doAction()
+        expect(ackSpy).to.have.been.calledWith undefined
+
+  describe '#onMove', ->
+    ackSpy = null
+    doAction = (path='some/path', newPath='some/newpath') -> sftpSocket.onMove path, newPath, ackSpy
+
+    beforeEach ->
+      ackSpy = sinon.spy()
+
+    it 'does nothing when sftp socket is not yet initialize', ->
+      beforeEach -> sftpSocket.sftp = null
+      expect(->
+        doAction()
+      ).not.to.throw Error
+
+    context 'when @sftp exists', ->
+      sftp = null
+
+      beforeEach ->
+        sftp = sftpSocket.sftp = new SFTP {}
+        sinon.stub sftp, 'mv'
+
+      it 'moves the file using mv command', ->
+        doAction()
+        expect(sftp.mv).to.have.been.calledWith 'some/path', 'some/newpath'
+
+      it 'calls ack callback with error when mv returns error', ->
+        error = new Error 'some error'
+        sftp.mv.callsArgWith 2, error
+        doAction()
+        expect(ackSpy).to.have.been.calledWith error.toString()
+
+      it 'calls ack callback with no error', ->
+        sftp.mv.callsArgWith 2, null
         doAction()
         expect(ackSpy).to.have.been.calledWith undefined
 

@@ -1,7 +1,9 @@
 BaseSocket = require './base_socket'
 Box = require '../models/box'
 SSHHelper = require('action-base').SSHHelper
-SFTP = require 'sftp.js'
+#TODO: Revert this before merging
+#SFTP = require 'sftp.js'
+SFTP = require '../../../sftp.js/index'
 fs = require 'fs'
 app = require '../../app'
 
@@ -98,6 +100,11 @@ module.exports = class SFTPSocket extends BaseSocket
     return unless @sftp
     @sftp.rm path, (err) ->
       ack? err?.toString()
+  
+  onMove: (path, newPath, ack) ->
+    return unless @sftp
+    @sftp.mv path, newPath, (err) =>
+      ack? err?.toString(), path
 
   onUpload: (path, uploadToken, ack) ->
     return unless @sftp

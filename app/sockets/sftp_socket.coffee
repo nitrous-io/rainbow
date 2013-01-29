@@ -1,9 +1,7 @@
 BaseSocket = require './base_socket'
 Box = require '../models/box'
 SSHHelper = require('action-base').SSHHelper
-#TODO: Revert this before merging
-#SFTP = require 'sftp.js'
-SFTP = require '../../../sftp.js/index'
+SFTP = require 'sftp.js'
 fs = require 'fs'
 app = require '../../app'
 

@@ -5,9 +5,7 @@ KeyPair = require '../../app/models/key_pair'
 { SSHHelper } = require('action-base')
 Box = require '../../app/models/box'
 app = require '../../app'
-#TODO: Revert this before merging
-#SFTP = require 'sftp.js'
-SFTP = require '../../../sftp.js/index'
+SFTP = require 'sftp.js'
 fs = require 'fs'
 
 describe 'SFTPSocket', ->

@@ -16,7 +16,7 @@
   , "socket.io"     : "0.9.11"
   , "pty.js"        : "0.1.x"
   , "winston"       : "0.6.x"
-  , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#5baabccbf8c1ccc28de7199a7f9881ab684ce911"
+  , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#a77b641d4811a7c924d3ad06643c8071208ea1b2"
   , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#f7ec11a07a25031af720b29797933b716223fdb5"
   , "repoman"       : "git+ssh://git@github.com:action-io/repoman.git#4531d43f8bd78d0060cf1fa6de790dd9d10f5ea4"
   , "airbrake"      : "0.2.x"

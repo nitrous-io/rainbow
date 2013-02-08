@@ -28,7 +28,7 @@ require('./config/routes')(app)
 
 if app.settings.airbrakeAPIKey
   airbrake = require('airbrake').createClient app.settings.airbrakeAPIKey
-  airbrake.handleExceptions(false) # Don't die when an exception occurs
+  airbrake.handleExceptions() # Don't die when an exception occurs
 else
   process.on 'uncaughtException', (err) ->
     console.log err

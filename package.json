@@ -19,7 +19,7 @@
   , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#5baabccbf8c1ccc28de7199a7f9881ab684ce911"
   , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#f7ec11a07a25031af720b29797933b716223fdb5"
   , "repoman"       : "git+ssh://git@github.com:action-io/repoman.git#4531d43f8bd78d0060cf1fa6de790dd9d10f5ea4"
-  , "airbrake"      : "0.2.x"
+  , "airbrake"      : "git+ssh://git@github.com:action-io/node-airbrake.git#8280027e7db5339fe809b9f26139ba6656da9441"
   }
 , "devDependencies": {
     "mocha"        : "1.6.x"

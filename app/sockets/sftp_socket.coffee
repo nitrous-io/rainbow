@@ -19,7 +19,7 @@ module.exports = class SFTPSocket extends BaseSocket
       @box = box
       return ack? err.toString() if err
       return ack? 'box not found' unless box
-      return ack? "box doesn't belong to user" if box.owner_id != @user.id
+      return ack? "box doesn't belong to user" if box.owner_id != @user?.id
       @box.findKeyPair (err, keyPair) =>
         return ack? err.toString() if err
         return ack? 'key pair not found' unless keyPair

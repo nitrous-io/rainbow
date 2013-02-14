@@ -15,7 +15,7 @@ module.exports = class SSHSocket extends BaseSocket
       unless box
         ack? 'box not found'
         return
-      if box.owner_id != @user.id
+      if box.owner_id != @user?.id
         ack? "box doesn't belong to user"
         return
       if @pty

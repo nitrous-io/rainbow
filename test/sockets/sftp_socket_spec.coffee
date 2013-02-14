@@ -72,6 +72,15 @@ describe 'SFTPSocket', ->
         it 'calls ack callback with the error message', ->
           expect(ackSpy).to.have.been.calledWith "box doesn't belong to user"
 
+      context 'when the user is undefined', ->
+        beforeEach ->
+          sftpSocket.user = undefined
+          box.owner_id = 1337
+          doAction()
+
+        it 'calls ack callback with the error message', ->
+          expect(ackSpy).to.have.been.calledWith "box doesn't belong to user"
+
       context 'when box belongs to this user', ->
         beforeEach ->
           expect(sftpSocket.user.id).not.to.be.null

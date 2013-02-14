@@ -56,13 +56,21 @@ describe 'SFTPSocket', ->
 
       it 'calls ack callback with the error message', ->
         expect(ackSpy).to.have.been.calledWith 'box not found'
-
+    
     context 'when box is found', ->
       box = null
 
       beforeEach ->
         box = new Box id: 123, host: 'foobar.action.io', port: 2234
         Box.findById.callsArgWith 2, null, box
+
+      context 'when socket is closed', ->
+        beforeEach ->
+          sftpSocket.socket = undefined
+          doAction()
+
+        it 'calls ack callback with the error message', ->
+          expect(ackSpy).to.have.been.calledWith 'connection is closed'
 
       context 'when the box does not belong to this user', ->
         beforeEach ->

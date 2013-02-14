@@ -63,6 +63,14 @@ describe 'SSHSocket', ->
         box = new Box id: 123, host: 'foobar.action.io', port: 2234
         Box.findById.callsArgWith 2, null, box
 
+      context 'when socket is closed', ->
+        beforeEach ->
+          sshSocket.socket = undefined
+          doAction()
+
+        it 'calls ack callback with the error message', ->
+          expect(ackSpy).to.have.been.calledWith 'connection is closed'
+
       context 'when the box does not belong to this user', ->
         beforeEach ->
           box.owner_id = 1337

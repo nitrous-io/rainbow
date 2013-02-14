@@ -12,6 +12,8 @@ module.exports = class SSHSocket extends BaseSocket
       if err
         ack? err.toString()
         return
+      unless @socket
+        return ack? 'connection is closed'
       unless box
         ack? 'box not found'
         return

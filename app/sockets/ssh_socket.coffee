@@ -2,9 +2,7 @@ _ = require 'underscore'
 BaseSocket = require './base_socket'
 Box = require '../models/box'
 SSHHelper = require('action-base').SSHHelper
-Repoman = require('repoman')
 pty = require 'pty.js'
-repoman = new Repoman()
 
 module.exports = class SSHSocket extends BaseSocket
   @EVENTS: ['start', 'd', 'r', 'kill']

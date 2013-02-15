@@ -48,6 +48,15 @@ describe 'SSHSocket', ->
       it 'calls ack callback with the error message', ->
         expect(ackSpy).to.have.been.calledWith error.toString()
 
+    context 'when the socket is already destroyed', ->
+      beforeEach ->
+        sshSocket.socket = undefined
+        sshSocket.user = undefined
+        doAction()
+
+        it 'returns without calling ack callback', ->
+          expect(ackSpy).not.to.have.been.called()
+
     context 'when a box with a given id is not found', ->
       beforeEach ->
         Box.findById.callsArgWith 2, null, null

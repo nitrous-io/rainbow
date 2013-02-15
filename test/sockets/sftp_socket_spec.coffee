@@ -57,6 +57,15 @@ describe 'SFTPSocket', ->
       it 'calls ack callback with the error message', ->
         expect(ackSpy).to.have.been.calledWith 'box not found'
 
+    context 'when the socket is already destroyed', ->
+      beforeEach ->
+        sftpSocket.socket = undefined
+        sftpSocket.user = undefined
+        doAction()
+
+        it 'returns without calling ack callback', ->
+          expect(ackSpy).not.to.have.been.called()
+
     context 'when box is found', ->
       box = null
 

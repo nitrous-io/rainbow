@@ -56,7 +56,16 @@ describe 'SFTPSocket', ->
 
       it 'calls ack callback with the error message', ->
         expect(ackSpy).to.have.been.calledWith 'box not found'
-    
+
+    context 'when the socket is already destroyed', ->
+      beforeEach ->
+        sftpSocket.socket = undefined
+        sftpSocket.user = undefined
+        doAction()
+
+        it 'returns without calling ack callback', ->
+          expect(ackSpy).not.to.have.been.called()
+
     context 'when box is found', ->
       box = null
 
@@ -64,25 +73,8 @@ describe 'SFTPSocket', ->
         box = new Box id: 123, host: 'foobar.action.io', port: 2234
         Box.findById.callsArgWith 2, null, box
 
-      context 'when socket is closed', ->
-        beforeEach ->
-          sftpSocket.socket = undefined
-          doAction()
-
-        it 'calls ack callback with the error message', ->
-          expect(ackSpy).to.have.been.calledWith 'connection is closed'
-
       context 'when the box does not belong to this user', ->
         beforeEach ->
-          box.owner_id = 1337
-          doAction()
-
-        it 'calls ack callback with the error message', ->
-          expect(ackSpy).to.have.been.calledWith "box doesn't belong to user"
-
-      context 'when the user is undefined', ->
-        beforeEach ->
-          sftpSocket.user = undefined
           box.owner_id = 1337
           doAction()
 

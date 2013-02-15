@@ -9,15 +9,14 @@ module.exports = class SSHSocket extends BaseSocket
 
   onStart: (boxId, ack) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
+      return unless @socket && @user
       if err
         ack? err.toString()
         return
-      unless @socket
-        return ack? 'connection is closed'
       unless box
         ack? 'box not found'
         return
-      if box.owner_id != @user?.id
+      if box.owner_id != @user.id
         ack? "box doesn't belong to user"
         return
       if @pty

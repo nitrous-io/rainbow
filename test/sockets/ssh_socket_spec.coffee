@@ -128,10 +128,22 @@ describe 'SSHSocket', ->
     doAction = ->
       sshSocket.connectToSSH cbSpy
 
+    context "when the @box object is already destroyed", ->
+      beforeEach ->
+        doAction()
+        box = sshSocket.box
+        sshSocket.box = null
+        keyPair = new KeyPair
+        keyPair.__defineGetter__ 'private_key', -> 'some private key'
+        box.findKeyPair.yield null, keyPair
+
+      it "doesn't call the callback", ->
+        expect(cbSpy).not.to.have.been.called
+
     context "when finding the box's key pair fails with error", ->
       beforeEach ->
         error = new Error
-        sshSocket.box.findKeyPair.callsArgWith 0, error , null
+        sshSocket.box.findKeyPair.callsArgWith 0, error, null
         doAction()
 
       it 'calls callback with error', ->

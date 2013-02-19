@@ -41,6 +41,8 @@ module.exports = class SSHSocket extends BaseSocket
 
   connectToSSH: (callback) ->
     @box?.findKeyPair (err, keyPair) =>
+      return unless @box
+
       if err
         callback err
         return

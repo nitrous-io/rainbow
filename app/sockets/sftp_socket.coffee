@@ -107,11 +107,15 @@ module.exports = class SFTPSocket extends BaseSocket
     return unless @sftp
     @sftp.rm path, (err) ->
       ack? err?.toString()
-  
+
   onRename: (path, newPath, ack) ->
     return unless @sftp
-    @sftp.rename path, newPath, (err) =>
-      ack? err?.toString(), path
+    this.checkIfPathExists newPath, (exists) =>
+      if exists
+        ack? 'aio:name_taken'
+      else
+        @sftp.rename path, newPath, (err) =>
+          ack? err?.toString(), path
 
   onUpload: (path, uploadToken, ack) ->
     return unless @sftp

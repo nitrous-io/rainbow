@@ -597,16 +597,20 @@ describe 'SFTPSocket', ->
 
   describe '#onRename', ->
     ackSpy = null
-    doAction = (path='some/path', newPath='some/newpath') -> sftpSocket.onRename path, newPath, ackSpy
+    doAction = (path='some/path', newPath='some/newpath') ->
+      sftpSocket.onRename path, newPath, ackSpy
 
     beforeEach ->
       ackSpy = sinon.spy()
 
-    it 'does nothing when sftp socket is not yet initialize', ->
-      beforeEach -> sftpSocket.sftp = null
-      expect(->
-        doAction()
-      ).not.to.throw Error
+    context 'when sftp socket is not yet initialized', ->
+      beforeEach ->
+        sftpSocket.sftp = null
+
+      it 'does nothing when sftp socket is not yet initialize', ->
+        expect(->
+          doAction()
+        ).not.to.throw Error
 
     context 'when @sftp exists', ->
       sftp = null
@@ -614,21 +618,46 @@ describe 'SFTPSocket', ->
       beforeEach ->
         sftp = sftpSocket.sftp = new SFTP {}
         sinon.stub sftp, 'rename'
+        sinon.stub sftpSocket, 'checkIfPathExists'
 
-      it 'renames the file using rename command', ->
+      it 'checks for whether the new path already exists', ->
         doAction()
-        expect(sftp.rename).to.have.been.calledWith 'some/path', 'some/newpath'
+        expect(sftpSocket.checkIfPathExists).to.have.been.calledWith 'some/newpath'
 
-      it 'calls ack callback with error when rename returns error', ->
-        error = new Error 'some error'
-        sftp.rename.callsArgWith 2, error
-        doAction()
-        expect(ackSpy).to.have.been.calledWith error.toString()
+      context 'when there exists a file/folder in the new path', ->
+        beforeEach ->
+          sftpSocket.checkIfPathExists.callsArgWith 1, true
+          doAction()
 
-      it 'calls ack callback with no error', ->
-        sftp.rename.callsArgWith 2, null
-        doAction()
-        expect(ackSpy).to.have.been.calledWith undefined
+        it 'returns aio:name_taken error', ->
+          expect(ackSpy).to.have.been.calledWith 'aio:name_taken'
+
+      context 'when there is no file/folder in the new path', ->
+        beforeEach ->
+          sftpSocket.checkIfPathExists.callsArgWith 1, false
+
+        it 'renames the file using rename command', ->
+          doAction()
+          expect(sftp.rename).to.have.been.calledWith 'some/path', 'some/newpath'
+
+        context 'when rename returns error', ->
+          error = null
+
+          beforeEach ->
+            error = new Error 'some error'
+            sftp.rename.callsArgWith 2, error
+            doAction()
+
+          it 'calls ack callback with error', ->
+            expect(ackSpy).to.have.been.calledWith error.toString()
+
+        context 'when rename returns no error', ->
+          beforeEach ->
+            sftp.rename.callsArgWith 2, null
+            doAction()
+
+          it 'calls ack callback with no error', ->
+            expect(ackSpy).to.have.been.calledWith undefined
 
   describe '#onUpload', ->
     ackSpy = null

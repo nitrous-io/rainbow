@@ -4,7 +4,14 @@ process.title = "rainbow"
 express = require 'express'
 module.exports = app = express()
 
-_ = require 'underscore'
+http       = require 'http'
+_          = require 'underscore'
+pg         = require('pg').native
+airbrake   = require 'airbrake'
+actionBase = require 'action-base'
+Repoman    = require 'repoman'
+socketIO   = require 'socket.io'
+sockjs     = require 'sockjs'
 
 # settings
 settings = require './config/settings'
@@ -15,11 +22,10 @@ _.extend app.settings, settings
 require('./config/application')(app)
 
 # message verifier
-MessageVerifier = require('action-base').MessageVerifier
+MessageVerifier = actionBase.MessageVerifier
 app.messageVerifier = new MessageVerifier app.settings.secretToken
 
 # postgres
-pg = require('pg').native
 database = require './config/database'
 _.extend pg.defaults, database.postgres[env]
 
@@ -27,8 +33,8 @@ _.extend pg.defaults, database.postgres[env]
 require('./config/routes')(app)
 
 if app.settings.airbrakeAPIKey
-  airbrake = require('airbrake').createClient app.settings.airbrakeAPIKey
-  airbrake.handleExceptions() # Don't die when an exception occurs
+  ab = airbrake.createClient app.settings.airbrakeAPIKey
+  ab.handleExceptions() # Don't die when an exception occurs
 else
   process.on 'uncaughtException', (err) ->
     console.log err
@@ -36,20 +42,14 @@ else
     console.log err.stack
 
 # send uptime/memory usage data to statsd
-Repoman = require('repoman')
 (new Repoman).collect()
 
 logger = require './app/lib/logger'
-if require.main == module || require.main.filename.match /boot\.js/
-  server = app.listen(process.env.PORT || 4000)
-  unless address = server.address()
-    logger.info 'Could not start Rainbow!'
-    return
 
-  logger.info "Rainbow listening on port #{address.port} in #{env} mode"
+if require.main == module || require.main.filename.match /boot\.js/
+  server = http.createServer app
 
   # socket.io
-  socketIO = require 'socket.io'
   app.io = io = socketIO.listen(server)
   io.configure ->
     io.enable 'log'
@@ -59,3 +59,22 @@ if require.main == module || require.main.filename.match /boot\.js/
     io.set 'match origin protocol', true
   require('./app/sockets/ssh_socket').init io, '/ws/ssh'
   require('./app/sockets/sftp_socket' ).init io, '/ws/sftp'
+
+  # sockjs
+  SocketConnection = require './app/lib/socket_connection'
+
+  app.sock = sock = sockjs.createServer
+    sockjs_url: 'http://cdn.sockjs.org/sockjs-0.3.min.js'
+
+  sock.on 'connection', (ws) ->
+    sc = new SocketConnection(ws)
+
+  sock.installHandlers server, prefix: '/sock'
+
+  server.listen(process.env.PORT || 4000)
+  unless address = server.address()
+    logger.info 'Could not start Rainbow!'
+    return
+
+  logger.info "Rainbow listening on port #{address.port} in #{env} mode"
+

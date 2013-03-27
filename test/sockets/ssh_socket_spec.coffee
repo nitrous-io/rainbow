@@ -135,7 +135,7 @@ describe 'SSHSocket', ->
         sshSocket.box = null
         keyPair = new KeyPair
         keyPair.__defineGetter__ 'private_key', -> 'some private key'
-        box.findKeyPair.yield null, keyPair
+        box.findKeyPair.yields null, keyPair
 
       it "doesn't call the callback", ->
         expect(cbSpy).not.to.have.been.called

@@ -62,12 +62,14 @@ if require.main == module || require.main.filename.match /boot\.js/
 
   # sockjs
   SocketConnection = require './app/lib/socket_connection'
+  SSHSock = require './app/socks/ssh_sock'
 
   app.sock = sock = sockjs.createServer
     sockjs_url: 'http://cdn.sockjs.org/sockjs-0.3.min.js'
 
   sock.on 'connection', (ws) ->
     sc = new SocketConnection(ws)
+    sc.register SSHSock
 
   sock.installHandlers server, prefix: '/sock'
 

@@ -24,6 +24,8 @@ require('./config/application')(app)
 # message verifier
 MessageVerifier = actionBase.MessageVerifier
 app.messageVerifier = new MessageVerifier app.settings.secretToken
+AuthTokenVerifier = require './app/lib/auth_token_verifier'
+app.authTokenVerifier = new AuthTokenVerifier 'rainbow', app.messageVerifier
 
 # postgres
 database = require './config/database'
@@ -68,7 +70,7 @@ if require.main == module || require.main.filename.match /boot\.js/
     sockjs_url: 'http://cdn.sockjs.org/sockjs-0.3.min.js'
 
   sock.on 'connection', (ws) ->
-    sc = new SocketConnection(ws)
+    sc = new SocketConnection(ws, app)
     sc.register SSHSock
 
   sock.installHandlers server, prefix: '/sock'

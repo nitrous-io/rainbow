@@ -13,6 +13,7 @@ describe 'SSHSock', ->
   beforeEach ->
     ws = sinon.stub on: (->), write: (->), close: (->)
     connection = new SocketConnection ws
+    connection.userId = 1337
     sock = new SSHSock connection
 
   it 'is a subclass of BaseSock', ->
@@ -52,7 +53,6 @@ describe 'SSHSock', ->
     context 'when the socket is already destroyed', ->
       beforeEach ->
         sock.socket = undefined
-        sock.user = undefined
         doAction()
 
         it 'returns without calling ack callback', ->
@@ -73,18 +73,17 @@ describe 'SSHSock', ->
         box = new Box id: 123, host: 'foobar.action.io', port: 2234
         Box.findById.callsArgWith 2, null, box
 
-      #context 'when the box does not belong to this user', ->
-        #beforeEach ->
-          #box.owner_id = 1337
-          #doAction()
+      context 'when the box does not belong to this user', ->
+        beforeEach ->
+          box.owner_id = 9001
+          doAction()
 
-        #it 'calls ack callback with the error message', ->
-          #expect(ackSpy).to.have.been.calledWith "box doesn't belong to user"
+        it 'calls ack callback with the error message', ->
+          expect(ackSpy).to.have.been.calledWith "box doesn't belong to user"
 
       context 'when box belongs to this user', ->
         beforeEach ->
-          #expect(sock.user.id).not.to.be.null
-          #box.owner_id = sock.user.id
+          box.owner_id = 1337
 
         context 'when a pty session is already created', ->
           beforeEach ->

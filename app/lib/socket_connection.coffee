@@ -1,7 +1,8 @@
 _ = require 'underscore'
 
 module.exports = class SocketConnection
-  constructor: (@ws) ->
+  constructor: (@ws, @app) ->
+    @userId = null
     @sockClasses = {}
     @socks = {}
     @ws.on 'data',  _.bind(@_onData, this)
@@ -11,10 +12,13 @@ module.exports = class SocketConnection
     @sockClasses[sockClass::namespace] = sockClass
 
   close: ->
-    @ws.close()
+    @ws?.close()
 
   send: (payload) ->
-    @ws.write JSON.stringify(payload)
+    @ws?.write JSON.stringify(payload)
+
+  isAuthenticated: ->
+    @userId?
 
   _onData: (message) ->
     try
@@ -25,22 +29,32 @@ module.exports = class SocketConnection
 
     [namespace, event, args, callbackId] = message
 
-    if event == 'init'
-      if sockClass = @sockClasses[namespace]
-        @socks[namespace] = new sockClass this
-        if callbackId?
-          this._invokeCallback callbackId, []
-    else if sock = @socks[namespace]
-      args.unshift event
+    invokeCallback = (args=[]) =>
       if callbackId?
+        this._invokeCallback callbackId, args
+
+    if namespace == 'global' && event == 'auth'
+      @userId = @app.authTokenVerifier.verify(args[0])
+      if @userId?
+        invokeCallback()
+      else
+        this.close()
+    else if this.isAuthenticated()
+      if event == 'init'
+        if sockClass = @sockClasses[namespace]
+          @socks[namespace] = new sockClass this
+          invokeCallback()
+      else if sock = @socks[namespace]
+        args.unshift event
         args.push =>
-          this._invokeCallback callbackId, _.toArray(arguments)...
-      sock.emit args...
+          invokeCallback _.toArray(arguments)
+        sock.emit args...
 
   _onClose: ->
     @sockClasses = null
     @socks = null
+    @ws = null
 
   _invokeCallback: (callbackId, args) ->
-    @ws.write JSON.stringify(['global', 'callback', [callbackId, args]])
+    @ws?.write JSON.stringify(['global', 'callback', [callbackId, args]])
 

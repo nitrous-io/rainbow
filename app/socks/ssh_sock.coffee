@@ -20,16 +20,16 @@ module.exports = class SSHSock extends BaseSock
 
   onStart: (boxId, ack) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
-      return unless @connection# && @user
+      return unless @connection && @connection.isAuthenticated()
       if err
         ack? err.toString()
         return
       unless box
         ack? 'box not found'
         return
-      #if box.owner_id != @user.id
-        #ack? "box doesn't belong to user"
-        #return
+      if box.owner_id != @connection.userId
+        ack? "box doesn't belong to user"
+        return
       if @pty
         ack? 'pty already created'
         return

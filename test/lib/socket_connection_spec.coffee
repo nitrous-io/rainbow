@@ -1,15 +1,21 @@
 SocketConnection = require '../../app/lib/socket_connection'
 BaseSock = require '../../app/socks/base_sock'
+app = require '../../app'
 
 class TestSock extends BaseSock
   namespace: 'test'
 
 describe 'SockConnection', ->
-  ws = connection = null
+  connection = ws = null
 
   beforeEach ->
     ws = sinon.stub on: (->), write: (->), close: (->)
-    connection = new SocketConnection(ws)
+    connection = new SocketConnection ws, app
+
+  describe 'constructor', ->
+    it 'sets @ws and @app', ->
+      expect(connection.ws).to.equal ws
+      expect(connection.app).to.equal app
 
   describe '#register', ->
     it 'registers the sock and corresponding sock class', ->
@@ -21,6 +27,21 @@ describe 'SockConnection', ->
     it 'closes sockjs connection', ->
       connection.close()
       expect(ws.close).to.have.been.called
+
+  describe '#isAuthenticated', ->
+    context 'when @userId is null', ->
+      beforeEach ->
+        connection.userId = null
+
+      it 'returns false', ->
+        expect(connection.isAuthenticated()).to.be.false
+
+    context 'when @userId is set', ->
+      beforeEach ->
+        connection.userId = 123
+
+      it 'returns true', ->
+        expect(connection.isAuthenticated()).to.be.true
 
   describe '#send', ->
     it 'sends an object via sockjs connection in json representation', ->
@@ -55,41 +76,98 @@ describe 'SockConnection', ->
         beforeEach ->
           sinon.stub connection, '_invokeCallback'
 
+        context 'when the namespace is "global" and action is "auth"', ->
+          beforeEach ->
+            sinon.stub app.authTokenVerifier, 'verify'
+
+          afterEach ->
+            app.authTokenVerifier.verify.restore()
+
+          context 'when auth token is valid', ->
+            beforeEach ->
+              app.authTokenVerifier.verify.withArgs('50m370k3n').returns 123
+              connection._onData JSON.stringify(["global", "auth", ["50m370k3n"], 86])
+
+            it 'sets @userId', ->
+              expect(connection.userId).to.equal 123
+
+            it 'invokes callback', ->
+              expect(connection._invokeCallback).to.have.been.calledWith 86, []
+
+          context 'when auth token fails verification', ->
+            beforeEach ->
+              sinon.stub connection, 'close'
+              app.authTokenVerifier.verify.withArgs('50m370k3n').returns null
+              connection._onData JSON.stringify(["global", "auth", ["50m370k3n"], 86])
+
+            it 'sets @userId to be null', ->
+              expect(connection.userId).to.be.null
+
+            it 'closes connection', ->
+              expect(connection.close).to.have.been.called
+
         context 'with a registered sock', ->
           context 'when the action is "init"', ->
             beforeEach ->
               connection.register TestSock
-              connection._onData JSON.stringify(["test", "init", null, 42])
 
-            it 'initializes a test sock class', ->
-              expect(connection.socks.test).to.be.an.instanceof TestSock
-              expect(connection.socks.test.connection).to.equal connection
+            context 'when authenticated', ->
+              beforeEach ->
+                sinon.stub(connection, 'isAuthenticated').returns true
+                connection._onData JSON.stringify(["test", "init", null, 42])
 
-            it 'invokes callback', ->
-              expect(connection._invokeCallback).to.have.been.calledWith 42, []
+              it 'initializes a test sock class', ->
+                expect(connection.socks.test).to.be.an.instanceof TestSock
+                expect(connection.socks.test.connection).to.equal connection
 
-          context 'when the action is not "init"', ->
+              it 'invokes callback', ->
+                expect(connection._invokeCallback).to.have.been.calledWith 42, []
+
+            context 'when not authenticated', ->
+              beforeEach ->
+                sinon.stub(connection, 'isAuthenticated').returns false
+                connection._onData JSON.stringify(["test", "init", null, 42])
+
+              it 'does nothing', ->
+                expect(connection.socks.test).not.to.exist
+                expect(connection._invokeCallback).not.to.have.been.called
+
+          context 'given custom events', ->
             sock = null
 
             beforeEach ->
-              sock = sinon.stub new BaseSock
-              connection.socks.ssh = sock
+              sock = sinon.stub new TestSock
+              connection.socks.test = sock
 
-            context 'when callback id is not given', ->
+            context 'when authenticated', ->
               beforeEach ->
-                connection._onData JSON.stringify(["ssh", "doSomething", ["foo", "bar"]])
+                sinon.stub(connection, 'isAuthenticated').returns true
 
-              it 'emits the event to the sock with given arguments', ->
-                expect(sock.emit).to.have.been.calledWith 'doSomething', 'foo', 'bar'
+              context 'when callback id is not given', ->
+                beforeEach ->
+                  connection._onData JSON.stringify(["test", "doSomething", ["foo", "bar"]])
 
-            context 'when callback id is given', ->
+                it 'emits the event to the sock with given arguments', ->
+                  expect(sock.emit).to.have.been.calledWith 'doSomething', 'foo', 'bar'
+
+              context 'when callback id is given', ->
+                beforeEach ->
+                  sock.emit.yields 'hello', 123
+                  connection._onData JSON.stringify(["test", "doSomething", ["foo", "bar"], 69])
+
+                it 'emits the event to the sock with given arguments and a function', ->
+                  expect(sock.emit).to.have.been.calledWith 'doSomething', 'foo', 'bar', sinon.match.func
+                  expect(connection._invokeCallback).to.have.been.calledWith 69, ['hello', 123]
+
+            context 'when not authenticated', ->
               beforeEach ->
+                sinon.stub(connection, 'isAuthenticated').returns false
                 sock.emit.yields 'hello', 123
                 connection._onData JSON.stringify(["ssh", "doSomething", ["foo", "bar"], 69])
 
-              it 'emits the event to the sock with given arguments and a function', ->
-                expect(sock.emit).to.have.been.calledWith 'doSomething', 'foo', 'bar', sinon.match.func
-                expect(connection._invokeCallback).to.have.been.calledWith 69, 'hello', 123
+              it 'does nothing', ->
+                expect(sock.emit).not.to.have.been.called
+                expect(connection._invokeCallback).not.to.have.been.called
 
         context 'with a non-registered sock', ->
           context 'when the action is "init"', ->

@@ -1,12 +1,12 @@
 _ = require 'underscore'
-BaseSock = require './base_sock'
+BaseSocket = require './base_socket'
 Box = require '../models/box'
 SSHHelper = require('action-base').SSHHelper
 SFTP = require 'sftp.js'
 fs = require 'fs'
 app = require '../../app'
 
-module.exports = class SFTPSock extends BaseSock
+module.exports = class SFTPSocket extends BaseSocket
   namespace: 'sftp'
   sizeLimit: 2 * 1024 * 1024 # 2 megabytes
 

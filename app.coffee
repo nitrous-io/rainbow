@@ -52,17 +52,17 @@ if require.main == module || require.main.filename.match /boot\.js/
 
   # sockjs
   SocketConnection = require './app/lib/socket_connection'
-  socks = require './app/socks'
+  sockets = require './app/sockets'
 
   app.sock = sock = sockjs.createServer
     sockjs_url: 'http://cdn.sockjs.org/sockjs-0.3.min.js'
 
   sock.on 'connection', (ws) ->
     sc = new SocketConnection(ws, app)
-    sc.register socks.SSHSock
-    sc.register socks.SFTPSock
+    sc.register sockets.SSHSocket
+    sc.register sockets.SFTPSocket
 
-  sock.installHandlers server, prefix: '/sock'
+  sock.installHandlers server, prefix: '/ws'
 
   server.listen(process.env.PORT || 4000)
   unless address = server.address()

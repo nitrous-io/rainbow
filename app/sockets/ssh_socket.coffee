@@ -1,10 +1,10 @@
 _ = require 'underscore'
-BaseSock = require './base_sock'
+BaseSocket = require './base_socket'
 Box = require '../models/box'
 SSHHelper = require('action-base').SSHHelper
 pty = require 'pty.js'
 
-module.exports = class SSHSock extends BaseSock
+module.exports = class SSHSocket extends BaseSocket
   namespace: 'ssh'
 
   initialize: ->

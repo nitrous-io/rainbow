@@ -1,11 +1,11 @@
 SocketConnection = require '../../app/lib/socket_connection'
-BaseSock = require '../../app/socks/base_sock'
+BaseSocket = require '../../app/sockets/base_socket'
 app = require '../../app'
 
-class TestSock extends BaseSock
+class TestSocket extends BaseSocket
   namespace: 'test'
 
-describe 'SockConnection', ->
+describe 'SocketConnection', ->
   connection = ws = null
 
   beforeEach ->
@@ -18,10 +18,10 @@ describe 'SockConnection', ->
       expect(connection.app).to.equal app
 
   describe '#register', ->
-    it 'registers the sock and corresponding sock class', ->
-      expect(connection.sockClasses.test).not.to.exist
-      connection.register TestSock
-      expect(connection.sockClasses.test).to.equal TestSock
+    it 'registers the socket and corresponding socket class', ->
+      expect(connection.socketClasses.test).not.to.exist
+      connection.register TestSocket
+      expect(connection.socketClasses.test).to.equal TestSocket
 
   describe '#close', ->
     it 'closes sockjs connection', ->
@@ -72,7 +72,7 @@ describe 'SockConnection', ->
           ).not.to.throw Error
           expect(ws.write).not.to.have.been.called
 
-      context 'when json is an array in the form of [sock, action, data, callbackId]', ->
+      context 'when json is an array in the form of [namespace, event, args, callbackId]', ->
         beforeEach ->
           sinon.stub connection, '_invokeCallback'
 
@@ -106,19 +106,19 @@ describe 'SockConnection', ->
             it 'closes connection', ->
               expect(connection.close).to.have.been.called
 
-        context 'with a registered sock', ->
+        context 'with a registered socket class', ->
           context 'when the action is "init"', ->
             beforeEach ->
-              connection.register TestSock
+              connection.register TestSocket
 
             context 'when authenticated', ->
               beforeEach ->
                 sinon.stub(connection, 'isAuthenticated').returns true
                 connection._onData JSON.stringify(["test", "init", null, 42])
 
-              it 'initializes a test sock class', ->
-                expect(connection.socks.test).to.be.an.instanceof TestSock
-                expect(connection.socks.test.connection).to.equal connection
+              it 'initializes a test socket class', ->
+                expect(connection.sockets.test).to.be.an.instanceof TestSocket
+                expect(connection.sockets.test.connection).to.equal connection
 
               it 'invokes callback', ->
                 expect(connection._invokeCallback).to.have.been.calledWith 42, []
@@ -129,15 +129,15 @@ describe 'SockConnection', ->
                 connection._onData JSON.stringify(["test", "init", null, 42])
 
               it 'does nothing', ->
-                expect(connection.socks.test).not.to.exist
+                expect(connection.sockets.test).not.to.exist
                 expect(connection._invokeCallback).not.to.have.been.called
 
           context 'given custom events', ->
-            sock = null
+            socket = null
 
             beforeEach ->
-              sock = sinon.stub new TestSock
-              connection.socks.test = sock
+              socket = sinon.stub new TestSocket
+              connection.sockets.test = socket
 
             context 'when authenticated', ->
               beforeEach ->
@@ -147,35 +147,35 @@ describe 'SockConnection', ->
                 beforeEach ->
                   connection._onData JSON.stringify(["test", "doSomething", ["foo", "bar"]])
 
-                it 'emits the event to the sock with given arguments', ->
-                  expect(sock.emit).to.have.been.calledWith 'doSomething', 'foo', 'bar'
+                it 'emits the event to the socket with given arguments', ->
+                  expect(socket.emit).to.have.been.calledWith 'doSomething', 'foo', 'bar'
 
               context 'when callback id is given', ->
                 beforeEach ->
-                  sock.emit.yields 'hello', 123
+                  socket.emit.yields 'hello', 123
                   connection._onData JSON.stringify(["test", "doSomething", ["foo", "bar"], 69])
 
-                it 'emits the event to the sock with given arguments and a function', ->
-                  expect(sock.emit).to.have.been.calledWith 'doSomething', 'foo', 'bar', sinon.match.func
+                it 'emits the event to the socket with given arguments and a function', ->
+                  expect(socket.emit).to.have.been.calledWith 'doSomething', 'foo', 'bar', sinon.match.func
                   expect(connection._invokeCallback).to.have.been.calledWith 69, ['hello', 123]
 
             context 'when not authenticated', ->
               beforeEach ->
                 sinon.stub(connection, 'isAuthenticated').returns false
-                sock.emit.yields 'hello', 123
+                socket.emit.yields 'hello', 123
                 connection._onData JSON.stringify(["ssh", "doSomething", ["foo", "bar"], 69])
 
               it 'does nothing', ->
-                expect(sock.emit).not.to.have.been.called
+                expect(socket.emit).not.to.have.been.called
                 expect(connection._invokeCallback).not.to.have.been.called
 
-        context 'with a non-registered sock', ->
+        context 'with a non-registered socket class', ->
           context 'when the action is "init"', ->
             it 'does nothing', ->
               expect(->
                 connection._onData JSON.stringify(["ssh", "init", null, 42])
               ).not.to.throw Error
-              expect(connection.socks.ssh).not.to.exist
+              expect(connection.sockets.ssh).not.to.exist
               expect(connection._invokeCallback).not.to.have.been.called
 
           context 'when the action is not "init"', ->
@@ -187,10 +187,10 @@ describe 'SockConnection', ->
 
   describe '#_onClose', ->
     beforeEach ->
-      connection.register TestSock
+      connection.register TestSocket
       connection._onClose()
 
-    it 'resets registered socks and initialized socks', ->
-      expect(connection.sockClasses).not.to.exist
-      expect(connection.socks).not.to.exist
+    it 'resets registered socket classes and initialized socket class instances', ->
+      expect(connection.socketClasses).not.to.exist
+      expect(connection.sockets).not.to.exist
 

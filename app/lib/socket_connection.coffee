@@ -3,13 +3,13 @@ _ = require 'underscore'
 module.exports = class SocketConnection
   constructor: (@ws, @app) ->
     @userId = null
-    @sockClasses = {}
-    @socks = {}
+    @socketClasses = {}
+    @sockets = {}
     @ws.on 'data',  _.bind(@_onData, this)
     @ws.on 'close', _.bind(@_onClose, this)
 
-  register: (sockClass) ->
-    @sockClasses[sockClass::namespace] = sockClass
+  register: (socketClass) ->
+    @socketClasses[socketClass::namespace] = socketClass
 
   close: ->
     @ws?.close()
@@ -41,18 +41,18 @@ module.exports = class SocketConnection
         this.close()
     else if this.isAuthenticated()
       if event == 'init'
-        if sockClass = @sockClasses[namespace]
-          @socks[namespace] = new sockClass this
+        if socketClass = @socketClasses[namespace]
+          @sockets[namespace] = new socketClass this
           invokeCallback()
-      else if sock = @socks[namespace]
+      else if socket = @sockets[namespace]
         args.unshift event
         args.push =>
           invokeCallback _.toArray(arguments)
-        sock.emit args...
+        socket.emit args...
 
   _onClose: ->
-    @sockClasses = null
-    @socks = null
+    @socketClasses = null
+    @sockets = null
     @ws = null
 
   _invokeCallback: (callbackId, args) ->

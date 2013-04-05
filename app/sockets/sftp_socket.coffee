@@ -1,3 +1,4 @@
+_ = require 'underscore'
 BaseSocket = require './base_socket'
 Box = require '../models/box'
 SSHHelper = require('action-base').SSHHelper
@@ -6,27 +7,49 @@ fs = require 'fs'
 app = require '../../app'
 
 module.exports = class SFTPSocket extends BaseSocket
-  @SIZE_LIMIT: 2 * 1024 * 1024 # 2 megabytes
-  @EVENTS: ['start', 'list', 'read', 'write', 'writeNew', 'makeDir', 'upload', 'deleteDir', 'deleteFile', 'rename']
+  namespace: 'sftp'
+  sizeLimit: 2 * 1024 * 1024 # 2 megabytes
+
+  initialize: ->
+    this.on 'start',      _.bind(@onStart,      this)
+    this.on 'list',       _.bind(@onList,       this)
+    this.on 'read',       _.bind(@onRead,       this)
+    this.on 'write',      _.bind(@onWrite,      this)
+    this.on 'writeNew',   _.bind(@onWriteNew,   this)
+    this.on 'makeDir',    _.bind(@onMakeDir,    this)
+    this.on 'deleteDir',  _.bind(@onDeleteDir,  this)
+    this.on 'deleteFile', _.bind(@onDeleteFile, this)
+    this.on 'rename',     _.bind(@onRename,     this)
+    this.on 'upload',     _.bind(@onUpload,     this)
 
   destroy: ->
-    super()
     @sftp?.destroy()
-    delete @sftp
+    @sftp = null
 
   onStart: (boxId, ack) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
-      return unless @socket && @user
+      return unless @connection && @connection.isAuthenticated()
       @box = box
-      return ack? err.toString() if err
-      return ack? 'box not found' unless box
-      return ack? "box doesn't belong to user" if box.owner_id != @user.id
+      if err
+        ack? err.toString()
+        return
+      unless box
+        ack? 'box not found'
+        return
+      if box.owner_id != @connection.userId
+        ack? "box doesn't belong to user"
+        return
       @box.findKeyPair (err, keyPair) =>
-        return ack? err.toString() if err
-        return ack? 'key pair not found' unless keyPair
+        if err
+          ack? err.toString()
+          return
+        unless keyPair
+          ack? 'key pair not found'
+          return
         @privateKey = keyPair.private_key
         @sftp = new SFTP host: @box.host, port: @box.port, user: 'action', key: @privateKey
-        @sftp.connect (err) => ack? err?.toString()
+        @sftp.connect (err) =>
+          ack? err?.toString()
 
   onList: (path, ack) ->
     @sftp?.ls path, (err, fileListing) =>
@@ -38,7 +61,7 @@ module.exports = class SFTPSocket extends BaseSocket
       if err
         ack? err.toString(), path
       else
-        if list[0] && list[0][2] <= @constructor.SIZE_LIMIT
+        if list[0] && list[0][2] <= @sizeLimit
           @sftp.get path, (err, fileBuffer, fileType) =>
             if err
               ack? err.toString(), path

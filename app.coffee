@@ -10,7 +10,6 @@ pg         = require('pg').native
 airbrake   = require 'airbrake'
 actionBase = require 'action-base'
 Repoman    = require 'repoman'
-socketIO   = require 'socket.io'
 sockjs     = require 'sockjs'
 
 # settings
@@ -50,17 +49,6 @@ logger = require './app/lib/logger'
 
 if require.main == module || require.main.filename.match /boot\.js/
   server = http.createServer app
-
-  # socket.io
-  app.io = io = socketIO.listen(server)
-  io.configure ->
-    io.enable 'log'
-    io.set 'origins', settings.socketIOAllowedOrigin
-    io.set 'log level', if env == 'development' then 3 else 1
-    io.set 'transports', ['websocket']
-    io.set 'match origin protocol', true
-  require('./app/sockets/ssh_socket').init io, '/ws/ssh'
-  require('./app/sockets/sftp_socket' ).init io, '/ws/sftp'
 
   # sockjs
   SocketConnection = require './app/lib/socket_connection'

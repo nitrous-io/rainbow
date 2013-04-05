@@ -5,18 +5,29 @@ SSHHelper = require('action-base').SSHHelper
 pty = require 'pty.js'
 
 module.exports = class SSHSocket extends BaseSocket
-  @EVENTS: ['start', 'd', 'r', 'kill']
+  namespace: 'ssh'
+
+  initialize: ->
+    this.on 'start', _.bind(@onStart,  this)
+    this.on 'd',     _.bind(@onData,   this)
+    this.on 'r',     _.bind(@onResize, this)
+    this.on 'kill',  _.bind(@onKill,   this)
+
+  destroy: ->
+    @pty?.destroy()
+    @pty = null
+    @box = null
 
   onStart: (boxId, ack) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
-      return unless @socket && @user
+      return unless @connection && @connection.isAuthenticated()
       if err
         ack? err.toString()
         return
       unless box
         ack? 'box not found'
         return
-      if box.owner_id != @user.id
+      if box.owner_id != @connection.userId
         ack? "box doesn't belong to user"
         return
       if @pty
@@ -29,14 +40,13 @@ module.exports = class SSHSocket extends BaseSocket
           return
         ack?()
 
-  onD: (data) ->
+  onData: (data) ->
     @pty?.write data
 
-  onR: (width, height) ->
+  onResize: (width, height) ->
     @pty?.resize width, height
 
   onKill: ->
-    @socket.disconnect()
     this.destroy()
 
   connectToSSH: (callback) ->
@@ -67,16 +77,10 @@ module.exports = class SSHSocket extends BaseSocket
         @pty.on 'close', _.bind(@onPTYClose, this)
         callback null
 
-  destroy: ->
-    super()
-    @pty?.destroy()
-    delete @pty
-    delete @box
-
   onPTYData: (data) ->
-    @socket?.emit 'p', data
+    this.send 'p', data
 
   onPTYClose: (hadError) ->
-    delete @pty
-    @socket?.emit 'close'
+    this.send 'close'
+    this.destroy()
 

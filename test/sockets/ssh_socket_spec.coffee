@@ -1,6 +1,6 @@
 SSHSocket = require '../../app/sockets/ssh_socket'
-FakeSocketIO = require '../support/fake_socket_io'
 BaseSocket = require '../../app/sockets/base_socket'
+SocketConnection = require '../../app/lib/socket_connection'
 Box = require '../../app/models/box'
 KeyPair = require '../../app/models/key_pair'
 SSHHelper = require('action-base').SSHHelper
@@ -8,19 +8,21 @@ EventEmitter = require('events').EventEmitter
 pty = require 'pty.js'
 
 describe 'SSHSocket', ->
-  sshSocket = io = null
+  socket = ws = connection = null
 
   beforeEach ->
-    io = new FakeSocketIO
-    sshSocket = new SSHSocket io.socket
+    ws = sinon.stub on: (->), write: (->), close: (->)
+    connection = new SocketConnection ws
+    connection.userId = 1337
+    socket = new SSHSocket connection
 
   it 'is a subclass of BaseSocket', ->
-    expect(sshSocket).to.be.an.instanceof BaseSocket
+    expect(socket).to.be.an.instanceof BaseSocket
 
-  it 'handles socket events', ->
-    expect(SSHSocket.EVENTS).to.deep.equal ['start', 'd', 'r', 'kill']
+  it 'has "ssh" as namespace', ->
+    expect(socket.namespace).to.equal 'ssh'
 
-  describe '#onStart', ->
+  context 'event: start', ->
     ackSpy = null
 
     beforeEach ->
@@ -31,7 +33,7 @@ describe 'SSHSocket', ->
       Box.findById.restore()
 
     doAction = ->
-      sshSocket.onStart 111, ackSpy
+      socket.emit 'start', 111, ackSpy
 
     it 'tries to find a box with a given id', ->
       doAction()
@@ -48,10 +50,9 @@ describe 'SSHSocket', ->
       it 'calls ack callback with the error message', ->
         expect(ackSpy).to.have.been.calledWith error.toString()
 
-    context 'when the socket is already destroyed', ->
+    context 'when the connection is already destroyed', ->
       beforeEach ->
-        sshSocket.socket = undefined
-        sshSocket.user = undefined
+        socket.connection = undefined
         doAction()
 
         it 'returns without calling ack callback', ->
@@ -74,7 +75,7 @@ describe 'SSHSocket', ->
 
       context 'when the box does not belong to this user', ->
         beforeEach ->
-          box.owner_id = 1337
+          box.owner_id = 9001
           doAction()
 
         it 'calls ack callback with the error message', ->
@@ -82,12 +83,11 @@ describe 'SSHSocket', ->
 
       context 'when box belongs to this user', ->
         beforeEach ->
-          expect(sshSocket.user.id).not.to.be.null
-          box.owner_id = sshSocket.user.id
+          box.owner_id = 1337
 
         context 'when a pty session is already created', ->
           beforeEach ->
-            sshSocket.pty = sinon.spy()
+            socket.pty = sinon.spy()
             doAction()
 
           it 'calls ack callback with the error message', ->
@@ -95,23 +95,23 @@ describe 'SSHSocket', ->
 
         context 'when a pty session is not yet created', ->
           beforeEach ->
-            sshSocket.pty = null
-            sinon.stub sshSocket, 'connectToSSH'
+            socket.pty = null
+            sinon.stub socket, 'connectToSSH'
 
           it 'assigns the box to @box', ->
             doAction()
-            expect(sshSocket.box).to.equal box
+            expect(socket.box).to.equal box
 
           it 'connects to SSH', ->
             doAction()
-            expect(sshSocket.connectToSSH).to.have.been.called
+            expect(socket.connectToSSH).to.have.been.called
 
           context 'when connectToSSH fails with error', ->
             error = null
 
             beforeEach ->
               error = new Error 'some ssh error'
-              sshSocket.connectToSSH.callsArgWith 0, error
+              socket.connectToSSH.callsArgWith 0, error
               doAction()
 
             it 'calls ack callback with the error message', ->
@@ -122,20 +122,20 @@ describe 'SSHSocket', ->
 
     beforeEach ->
       cbSpy = sinon.spy()
-      sshSocket.box = new Box id: 123, host: 'foobar.actionbox.io', port: 2234
-      sinon.stub sshSocket.box, 'findKeyPair'
+      socket.box = new Box id: 123, host: 'foobar.actionbox.io', port: 2234
+      sinon.stub socket.box, 'findKeyPair'
 
     doAction = ->
-      sshSocket.connectToSSH cbSpy
+      socket.connectToSSH cbSpy
 
     context "when the @box object is already destroyed", ->
       beforeEach ->
         doAction()
-        box = sshSocket.box
-        sshSocket.box = null
+        box = socket.box
+        socket.box = null
         keyPair = new KeyPair
         keyPair.__defineGetter__ 'private_key', -> 'some private key'
-        box.findKeyPair.yield null, keyPair
+        box.findKeyPair.yields null, keyPair
 
       it "doesn't call the callback", ->
         expect(cbSpy).not.to.have.been.called
@@ -143,7 +143,7 @@ describe 'SSHSocket', ->
     context "when finding the box's key pair fails with error", ->
       beforeEach ->
         error = new Error
-        sshSocket.box.findKeyPair.callsArgWith 0, error, null
+        socket.box.findKeyPair.callsArgWith 0, error, null
         doAction()
 
       it 'calls callback with error', ->
@@ -151,7 +151,7 @@ describe 'SSHSocket', ->
 
     context "when the box's key pair is not found", ->
       beforeEach ->
-        sshSocket.box.findKeyPair.callsArgWith 0, null, null
+        socket.box.findKeyPair.callsArgWith 0, null, null
         doAction()
 
       it 'calls callback with error', ->
@@ -163,7 +163,7 @@ describe 'SSHSocket', ->
       beforeEach ->
         keyPair = new KeyPair
         keyPair.__defineGetter__ 'private_key', -> 'some private key'
-        sshSocket.box.findKeyPair.callsArgWith 0, null , keyPair
+        socket.box.findKeyPair.callsArgWith 0, null , keyPair
         sinon.stub SSHHelper.prototype, 'writeKeyFile'
 
       afterEach ->
@@ -208,8 +208,8 @@ describe 'SSHSocket', ->
 
           beforeEach ->
             mockPty = new EventEmitter()
-            sinon.stub sshSocket, 'onPTYData'
-            sinon.stub sshSocket, 'onPTYClose'
+            sinon.stub socket, 'onPTYData'
+            sinon.stub socket, 'onPTYClose'
             sinon.stub pty, 'spawn', (cmd, args) ->
               expect(cmd).to.equal '/usr/bin/ssh'
               expect(args).to.deep.equal ['-sshargs']
@@ -234,84 +234,70 @@ describe 'SSHSocket', ->
             context 'data', ->
               it 'is handled by #onPTYData', ->
                 mockPty.emit 'data'
-                expect(sshSocket.onPTYData).to.have.been.called
+                expect(socket.onPTYData).to.have.been.called
 
             context 'close', ->
               it 'is handled by #onPTYClose', ->
                 mockPty.emit 'close'
-                expect(sshSocket.onPTYClose).to.have.been.called
+                expect(socket.onPTYClose).to.have.been.called
 
-  describe '#onD', ->
+  context 'event: d', ->
     context 'when a pty session does not exist', ->
       it 'does nothing', ->
-        sshSocket.onD 'some data'
+        socket.emit 'd', 'some data'
 
     context 'when a pty session exists', ->
       it 'writes data to pty', ->
-        sshSocket.pty =
-          write: sinon.mock().withExactArgs('some data').once()
-        sshSocket.onD 'some data'
-        sshSocket.pty.write.verify()
+        socket.pty = { write: sinon.spy() }
+        socket.emit 'd', 'some data'
+        expect(socket.pty.write).to.have.been.calledWith 'some data'
 
-  describe '#onR', ->
+  context 'event: r', ->
     context 'when a pty session does not exist', ->
       it 'does nothing', ->
-        sshSocket.onR 80, 25
+        socket.emit 'r', 80, 25
 
     context 'when a pty session exists', ->
       it 'resizes pty', ->
-        sshSocket.pty =
-          resize: sinon.mock().withExactArgs(80, 25).once()
-        sshSocket.onR 80, 25
-        sshSocket.pty.resize.verify()
+        socket.pty = { resize: sinon.spy() }
+        socket.emit 'r', 80, 25
+        expect(socket.pty.resize).to.have.been.calledWith 80, 25
 
-  describe '#onKill', ->
+  context 'event: kill', ->
     beforeEach ->
-      sinon.stub sshSocket.socket, 'disconnect'
-      sinon.stub sshSocket, 'destroy'
-      sshSocket.onKill()
-
-    it 'disconnects socket connection', ->
-      expect(sshSocket.socket.disconnect).to.have.been.called
+      sinon.stub socket, 'destroy'
+      socket.emit 'kill'
 
     it 'calls destroy', ->
-      expect(sshSocket.destroy).to.have.been.called
-
-  describe '#onDisconnect', ->
-    beforeEach ->
-      sinon.stub sshSocket, 'destroy'
-      sshSocket.onDisconnect()
-
-    it 'calls destroy', ->
-      expect(sshSocket.destroy).to.have.been.called
+      expect(socket.destroy).to.have.been.called
 
   describe '#onPTYData', ->
-    it 'emits "p" message with the data via socket', ->
-      sinon.stub sshSocket.socket, 'emit'
-      sshSocket.onPTYData 'some data'
-      expect(sshSocket.socket.emit).to.have.been.calledWith 'p', 'some data'
+    it 'sends "p" event with the data', ->
+      sinon.stub socket, 'send'
+      socket.onPTYData 'some data'
+      expect(socket.send).to.have.been.calledWith 'p', 'some data'
 
   describe '#onPTYClose', ->
-    it 'emits "close" message via socket and then deletes @pty', ->
-      sshSocket.pty = sinon.spy()
-      sinon.stub sshSocket.socket, 'emit'
-      sshSocket.onPTYClose()
-      expect(sshSocket.socket.emit).to.have.been.calledWith 'close'
-      expect(sshSocket).not.to.have.property 'pty'
+    it 'sends "close" event then calls destroy', ->
+      sinon.stub socket, 'send'
+      sinon.stub socket, 'destroy'
+      socket.onPTYClose()
+      expect(socket.send).to.have.been.calledWith 'close'
+      expect(socket.destroy).to.have.been.called
 
   describe '#destroy', ->
     mockPty = null
 
     beforeEach ->
-      mockPty = sshSocket.pty = { destroy: -> }
-      sinon.stub sshSocket.pty, 'destroy'
-      sshSocket.box = new Box
-      sshSocket.destroy()
+      mockPty = socket.pty = { destroy: -> }
+      sinon.stub socket.pty, 'destroy'
+      socket.box = new Box
+      socket.destroy()
 
-    it 'destroys and deletes @pty', ->
+    it 'destroys and nullifies @pty', ->
       expect(mockPty.destroy).to.have.been.called
-      expect(sshSocket.pty).not.to.exist
+      expect(socket.pty).not.to.exist
 
-    it 'deletes @box', ->
-      expect(sshSocket.box).not.to.exist
+    it 'nullifies @box', ->
+      expect(socket.box).not.to.exist
 

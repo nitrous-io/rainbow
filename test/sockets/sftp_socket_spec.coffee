@@ -41,15 +41,13 @@ describe 'SFTPSocket', ->
       expect(Box.findById).to.have.been.calledWith 111, ['owner_id', 'host', 'port']
 
     context 'when finding a box with a given id fails with error', ->
-      error = null
-
       beforeEach ->
         error = new Error 'some error'
         Box.findById.callsArgWith 2, error
         doAction()
 
       it 'calls ack callback with the error message', ->
-        expect(ackSpy).to.have.been.calledWith error.toString()
+        expect(ackSpy).to.have.been.calledWith 'failed to fetch box'
 
     context 'when a box with a given id is not found', ->
       beforeEach ->
@@ -72,19 +70,30 @@ describe 'SFTPSocket', ->
 
       beforeEach ->
         box = new Box id: 123, host: 'foobar.action.io', port: 2234
+        sinon.stub box, 'isAccessibleByUserId'
         Box.findById.callsArgWith 2, null, box
 
       context 'when the box does not belong to this user', ->
         beforeEach ->
-          box.owner_id = 9001
+          box.isAccessibleByUserId.withArgs(1337, sinon.match.func).yields null, false
           doAction()
 
         it 'calls ack callback with the error message', ->
           expect(ackSpy).to.have.been.calledWith "box doesn't belong to user"
 
+      context 'when an error occurs while checking whether the box belongs to this user', ->
+        error = new Error
+
+        beforeEach ->
+          box.isAccessibleByUserId.withArgs(1337, sinon.match.func).yields error
+          doAction()
+
+        it 'calls ack callback with an error message', ->
+          expect(ackSpy).to.have.been.calledWith 'unable to verify access permission'
+
       context 'when box belongs to this user', ->
         beforeEach ->
-          box.owner_id = 1337
+          box.isAccessibleByUserId.withArgs(1337, sinon.match.func).yields null, true
 
         context 'when a keypair for the box is not found', ->
           beforeEach ->
@@ -96,8 +105,6 @@ describe 'SFTPSocket', ->
             expect(ackSpy).to.have.been.calledWith 'key pair not found'
 
         context 'when there was an error finding the keypair', ->
-          error = null
-
           beforeEach ->
             error = new Error 'some error'
             sinon.stub box, 'findKeyPair'
@@ -105,7 +112,7 @@ describe 'SFTPSocket', ->
             doAction()
 
           it 'calls ack callback with the error message', ->
-            expect(ackSpy).to.have.been.calledWith error.toString()
+            expect(ackSpy).to.have.been.calledWith 'failed to fetch key pair'
 
         context 'when a keypair for the box is found', ->
           keyPair = null
@@ -137,8 +144,6 @@ describe 'SFTPSocket', ->
               expect(ackSpy).to.have.been.calledWith undefined
 
           context 'when it fails to connect to sftp', ->
-            error = null
-
             beforeEach ->
               sinon.stub SFTP.prototype, 'connect'
               error = new Error 'some sftp connection error'
@@ -149,7 +154,7 @@ describe 'SFTPSocket', ->
               SFTP::connect.restore()
 
             it 'calls ack callback with error', ->
-              expect(ackSpy).to.have.been.calledWith error.toString()
+              expect(ackSpy).to.have.been.calledWith 'failed to create sftp connection'
 
   describe 'event: list', ->
     ackSpy = null

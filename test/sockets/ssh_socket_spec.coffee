@@ -40,15 +40,13 @@ describe 'SSHSocket', ->
       expect(Box.findById).to.have.been.calledWith 111, ['owner_id', 'host', 'port']
 
     context 'when finding a box with a given id fails with error', ->
-      error = null
-
       beforeEach ->
         error = new Error 'some error'
         Box.findById.callsArgWith 2, error
         doAction()
 
       it 'calls ack callback with the error message', ->
-        expect(ackSpy).to.have.been.calledWith error.toString()
+        expect(ackSpy).to.have.been.calledWith 'failed to fetch box'
 
     context 'when the connection is already destroyed', ->
       beforeEach ->
@@ -71,19 +69,30 @@ describe 'SSHSocket', ->
 
       beforeEach ->
         box = new Box id: 123, host: 'foobar.action.io', port: 2234
+        sinon.stub box, 'isAccessibleByUserId'
         Box.findById.callsArgWith 2, null, box
 
       context 'when the box does not belong to this user', ->
         beforeEach ->
-          box.owner_id = 9001
+          box.isAccessibleByUserId.withArgs(1337, sinon.match.func).yields null, false
           doAction()
 
         it 'calls ack callback with the error message', ->
           expect(ackSpy).to.have.been.calledWith "box doesn't belong to user"
 
+      context 'when an error occurs while checking whether the box belongs to this user', ->
+        error = new Error
+
+        beforeEach ->
+          box.isAccessibleByUserId.withArgs(1337, sinon.match.func).yields error
+          doAction()
+
+        it 'calls ack callback with an error message', ->
+          expect(ackSpy).to.have.been.calledWith 'unable to verify access permission'
+
       context 'when box belongs to this user', ->
         beforeEach ->
-          box.owner_id = 1337
+          box.isAccessibleByUserId.withArgs(1337, sinon.match.func).yields null, true
 
         context 'when a pty session is already created', ->
           beforeEach ->
@@ -107,15 +116,13 @@ describe 'SSHSocket', ->
             expect(socket.connectToSSH).to.have.been.called
 
           context 'when connectToSSH fails with error', ->
-            error = null
-
             beforeEach ->
               error = new Error 'some ssh error'
               socket.connectToSSH.callsArgWith 0, error
               doAction()
 
             it 'calls ack callback with the error message', ->
-              expect(ackSpy).to.have.been.calledWith error.toString()
+              expect(ackSpy).to.have.been.calledWith 'failed to create ssh connection'
 
   describe '#connectToSSH', ->
     error = cbSpy = null

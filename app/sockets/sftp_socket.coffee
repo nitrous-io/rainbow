@@ -29,27 +29,20 @@ module.exports = class SFTPSocket extends BaseSocket
   onStart: (boxId, ack) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
       return unless @connection && @connection.isAuthenticated()
-      @box = box
-      if err
-        ack? err.toString()
-        return
-      unless box
-        ack? 'box not found'
-        return
-      if box.owner_id != @connection.userId
-        ack? "box doesn't belong to user"
-        return
-      @box.findKeyPair (err, keyPair) =>
-        if err
-          ack? err.toString()
-          return
-        unless keyPair
-          ack? 'key pair not found'
-          return
-        @privateKey = keyPair.private_key
-        @sftp = new SFTP host: @box.host, port: @box.port, user: 'action', key: @privateKey
-        @sftp.connect (err) =>
-          ack? err?.toString()
+      return ack?('failed to fetch box') if err
+      return ack?('box not found') unless box
+      box.isAccessibleByUserId @connection.userId, (err, accessible) =>
+        return ack?('unable to verify access permission') if err
+        return ack?("box doesn't belong to user") unless accessible
+        @box = box
+        @box.findKeyPair (err, keyPair) =>
+          return ack?('failed to fetch key pair') if err
+          return ack?('key pair not found') unless keyPair
+          @privateKey = keyPair.private_key
+          @sftp = new SFTP host: @box.host, port: @box.port, user: 'action', key: @privateKey
+          @sftp.connect (err) =>
+            ack?('failed to create sftp connection') if err
+            ack?()
 
   onList: (path, ack) ->
     @sftp?.ls path, (err, fileListing) =>

@@ -21,24 +21,16 @@ module.exports = class SSHSocket extends BaseSocket
   onStart: (boxId, ack) ->
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
       return unless @connection && @connection.isAuthenticated()
-      if err
-        ack? err.toString()
-        return
-      unless box
-        ack? 'box not found'
-        return
-      if box.owner_id != @connection.userId
-        ack? "box doesn't belong to user"
-        return
-      if @pty
-        ack? 'pty already created'
-        return
-      @box = box
-      this.connectToSSH (err) =>
-        if err
-          ack? err.toString()
-          return
-        ack?()
+      return ack?('failed to fetch box') if err
+      return ack?('box not found') unless box
+      box.isAccessibleByUserId @connection.userId, (err, accessible) =>
+        return ack?('unable to verify access permission') if err
+        return ack?("box doesn't belong to user") unless accessible
+        return ack?('pty already created') if @pty
+        @box = box
+        this.connectToSSH (err) =>
+          return ack?('failed to create ssh connection') if err
+          ack?()
 
   onData: (data) ->
     @pty?.write data

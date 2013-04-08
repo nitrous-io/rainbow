@@ -6,32 +6,31 @@
 , "private": true
 , "main": "./app"
 , "dependencies": {
-    "coffee-script" : "1.3.x"
-  , "express"       : "3.0.x"
-  , "connect"       : "2.5.x"
+    "coffee-script" : "1.x.x"
+  , "express"       : "3.1.x"
+  , "connect"       : "2.7.x"
   , "cookie"        : "0.0.x"
-  , "async"         : "0.1.x"
+  , "async"         : "0.2.x"
   , "underscore"    : "1.4.x"
-  , "pg"            : "0.8.x"
+  , "pg"            : "1.0.x"
   , "sockjs"        : "0.3.x"
-  , "rbytes"        : "0.0.2"
-  , "pty.js"        : "0.1.x"
+  , "rbytes"        : "0.0.x"
+  , "pty.js"        : "0.2.x"
   , "winston"       : "0.6.x"
-  , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#a77b641d4811a7c924d3ad06643c8071208ea1b2"
-  , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#f7ec11a07a25031af720b29797933b716223fdb5"
-  , "repoman"       : "git+ssh://git@github.com:action-io/repoman.git#4531d43f8bd78d0060cf1fa6de790dd9d10f5ea4"
+  , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#4d8c8cda6fa85c0d6ea5adedf6fb4aef45f390af"
+  , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#c6da8b74dd1b4b5cb53ff1642ed38ffcee7c3834"
   , "airbrake"      : "git+ssh://git@github.com:action-io/node-airbrake.git#1595e7f7d0873acb5339fe326a85ccf8c1f500bf"
   }
 , "devDependencies": {
-    "mocha"        : "1.6.x"
-  , "sinon"        : "1.4.x"
-  , "chai"         : "1.2.x"
-  , "sinon-chai"   : "2.1.x"
-  , "supertest"    : "0.3.x"
+    "mocha"        : "1.9.x"
+  , "sinon"        : "1.6.x"
+  , "chai"         : "1.5.x"
+  , "sinon-chai"   : "2.3.x"
+  , "supertest"    : "0.5.x"
   }
 , "engines": {
     "node"         : "0.8.x"
-  , "npm"          : "1.1.x"
+  , "npm"          : "1.2.x"
   }
 , "scripts": {
     "test": "make test"

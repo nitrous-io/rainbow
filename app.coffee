@@ -9,7 +9,6 @@ _          = require 'underscore'
 pg         = require('pg').native
 airbrake   = require 'airbrake'
 actionBase = require 'action-base'
-Repoman    = require 'repoman'
 sockjs     = require 'sockjs'
 
 # settings
@@ -41,9 +40,6 @@ else
     console.log err
     console.log err.message
     console.log err.stack
-
-# send uptime/memory usage data to statsd
-(new Repoman).collect()
 
 logger = require './app/lib/logger'
 

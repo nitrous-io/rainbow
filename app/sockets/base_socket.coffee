@@ -8,6 +8,8 @@ module.exports = class BaseSocket extends EventEmitter
 
   initialize: ->
 
+  destroy: ->
+
   send: (event, args...) ->
     @connection.send [@namespace, event, args]
 

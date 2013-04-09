@@ -52,6 +52,8 @@ module.exports = class SocketConnection
 
   _onClose: ->
     @socketClasses = null
+    _.each @sockets, (socket) ->
+      socket.destroy?()
     @sockets = null
     @ws = null
 

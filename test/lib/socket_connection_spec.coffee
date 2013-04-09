@@ -186,11 +186,18 @@ describe 'SocketConnection', ->
               expect(connection._invokeCallback).not.to.have.been.called
 
   describe '#_onClose', ->
+    testSocket = testSocket2 = null
+
     beforeEach ->
-      connection.register TestSocket
+      connection.socketClasses.test = TestSocket
+      connection.socketClasses.test2 = TestSocket
+      testSocket = connection.sockets.test = { destroy: sinon.spy() }
+      testSocket2 = connection.sockets.test2 = { destroy: sinon.spy() }
       connection._onClose()
 
     it 'resets registered socket classes and initialized socket class instances', ->
       expect(connection.socketClasses).not.to.exist
       expect(connection.sockets).not.to.exist
+      expect(testSocket.destroy).to.have.been.called
+      expect(testSocket2.destroy).to.have.been.called
 

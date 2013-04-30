@@ -1,3 +1,5 @@
+process.env.TERM = 'xterm-256color'
+
 _ = require 'underscore'
 BaseSocket = require './base_socket'
 Box = require '../models/box'

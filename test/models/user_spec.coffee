@@ -56,7 +56,7 @@ describe 'User', ->
 
       context 'when the session contains warden.user.user.key object, but one that does not contain user id', ->
         beforeEach ->
-          session = new MessageVerifier('secret_token').generate 'warden.user.user.key': ['User', null, '$2a$10$Z/uz106hoAT7lRhA1mLYS.']
+          session = new MessageVerifier('secret_token').generate 'warden.user.user.key': [null, '$2a$10$Z/uz106hoAT7lRhA1mLYS.']
 
         it 'makes callback with null', (done) ->
           User.verifyUserSession session, (err, user) ->
@@ -66,7 +66,7 @@ describe 'User', ->
 
       context 'when the session contains warden.user.user.key object, but one that does not contain password salt', ->
         beforeEach ->
-          session = new MessageVerifier('secret_token').generate 'warden.user.user.key': ['User', [123], null]
+          session = new MessageVerifier('secret_token').generate 'warden.user.user.key': [[123], null]
 
         it 'makes callback with null', (done) ->
           User.verifyUserSession session, (err, user) ->
@@ -76,7 +76,7 @@ describe 'User', ->
 
       context 'when the session contains warden.user.user.key object with the user id and salt', ->
         beforeEach ->
-          session = new MessageVerifier('secret_token').generate 'warden.user.user.key': ['User', [123], '$2a$10$Z/uz106hoAT7lRhA1mLYS.']
+          session = new MessageVerifier('secret_token').generate 'warden.user.user.key': [[123], '$2a$10$Z/uz106hoAT7lRhA1mLYS.']
 
         context 'when the user lookup fails with error', ->
           error = null

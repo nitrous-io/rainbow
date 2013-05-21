@@ -14,8 +14,8 @@ User.verifyUserSession = (session, callback) ->
   unless message
     callback(null, null)
     return
-  userId = message['warden.user.user.key']?[1]?[0]
-  salt = message['warden.user.user.key']?[2]
+  userId = message['warden.user.user.key']?[0]?[0]
+  salt = message['warden.user.user.key']?[1]
   unless userId && salt
     callback(null, null)
     return

@@ -65,5 +65,10 @@ if require.main == module || require.main.filename.match /boot\.js/
     logger.info 'Could not start Rainbow!'
     return
 
+  # This is a server that will be used by monitoring services (such as Datadog, etc.)
+  # to ping to see if Rainbow is up
+  Ping = require 'ping'
+  (new Ping).start()
+
   logger.info "Rainbow listening on port #{address.port} in #{env} mode"
 

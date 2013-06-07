@@ -121,7 +121,11 @@ describe 'SFTPSocket', ->
             keyPair = new KeyPair
             keyPair.__defineGetter__ 'private_key', -> 'some private key'
             sinon.stub box, 'findKeyPair'
+            sinon.stub SFTP.prototype, 'connect'
             box.findKeyPair.yields null, keyPair
+
+          afterEach ->
+            SFTP::connect.restore()
 
           it "instantiates an SFTP object with the box's host, port and private key", ->
             doAction()
@@ -130,28 +134,21 @@ describe 'SFTPSocket', ->
             expect(sftp.host).to.equal 'foobar.action.io'
             expect(sftp.port).to.equal 2234
             expect(sftp.key).to.equal 'some private key'
+            expect(sftp.remotePrefix).to.equal "/home/action"
 
           context 'when sftp connection is made', ->
             beforeEach ->
-              sinon.stub SFTP.prototype, 'connect'
               SFTP::connect.yields null
               doAction()
-
-            afterEach ->
-              SFTP::connect.restore()
 
             it 'calls ack callback with no error', ->
               expect(ackSpy).to.have.been.calledWith undefined
 
           context 'when it fails to connect to sftp', ->
             beforeEach ->
-              sinon.stub SFTP.prototype, 'connect'
               error = new Error 'some sftp connection error'
               SFTP::connect.yields error
               doAction()
-
-            afterEach ->
-              SFTP::connect.restore()
 
             it 'calls ack callback with error', ->
               expect(ackSpy).to.have.been.calledWith 'failed to create sftp connection'
@@ -544,27 +541,18 @@ describe 'SFTPSocket', ->
 
   describe 'event: deleteDir', ->
     ackSpy = null
-    doAction = (path='some/path') ->
-      socket.emit 'deleteDir', path, ackSpy
+    sftp = null
+    doAction = (path='some/path') -> socket.emit 'deleteDir', path, ackSpy
 
     beforeEach ->
-      ackSpy = sinon.spy()
-      socket.box = new Box id: 123, host: 'foobar.actionbox.io', port: 2234
-      sinon.stub SSHHelper.prototype, "execCommand"
+      sftp = socket.sftp = new SFTP {}
+      sinon.stub sftp, 'rmdir'
 
-    afterEach -> SSHHelper.prototype.execCommand.restore()
+    afterEach -> sftp.rmdir.restore()
 
-    it "deletes the path using an ssh connection", ->
-      SSHHelper::execCommand.callsArgWith 1, null, "", ""
+    it 'deletes the dir with sftp.rmdir command', ->
       doAction()
-      expect(ackSpy).to.have.been.called
-      expect(SSHHelper::execCommand).to.have.been.calledWith "rm -rf 'some/path'", sinon.match.func
-
-    it "encodes path", ->
-      SSHHelper::execCommand.callsArgWith 1, null, "", ""
-      doAction "hello world"
-      expect(ackSpy).to.have.been.called
-      expect(SSHHelper::execCommand).to.have.been.calledWith "rm -rf 'hello world'", sinon.match.func
+      expect(sftp.rmdir).to.have.been.calledWith 'some/path'
 
   describe 'event: deleteFile', ->
     ackSpy = null

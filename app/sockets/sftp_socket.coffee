@@ -39,7 +39,7 @@ module.exports = class SFTPSocket extends BaseSocket
           return ack?('failed to fetch key pair') if err
           return ack?('key pair not found') unless keyPair
           @privateKey = keyPair.private_key
-          @sftp = new SFTP host: @box.host, port: @box.port, user: 'action', key: @privateKey
+          @sftp = new SFTP host: @box.host, port: @box.port, user: 'action', key: @privateKey, remotePrefix: "/home/action"
           @sftp.connect (err) =>
             ack?('failed to create sftp connection') if err
             ack?()
@@ -85,7 +85,7 @@ module.exports = class SFTPSocket extends BaseSocket
   checkIfPathExists: (path, callback) ->
     @sftp.ls path, (err) =>
       if err
-        if err.toString().match /Can't ls: ".+" not found$/
+        if err.toString().match /No such file[ or directory]*/
           callback false
         else
           callback err.toString()
@@ -114,10 +114,8 @@ module.exports = class SFTPSocket extends BaseSocket
         ack? exists, path
 
   onDeleteDir: (path, ack) ->
-    path = SFTP.escape path
-    ssh = new SSHHelper 'action', @box.host, @box.port, @privateKey
-    ssh.execCommand "rm -rf #{path}", (err, stdout, stderr) ->
-      ack? err?.toString()
+    return unless @sftp
+    @sftp.rmdir path, (err) -> ack? err?.toString()
 
   onDeleteFile: (path, ack) ->
     return unless @sftp

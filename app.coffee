@@ -71,10 +71,7 @@ if require.main == module || require.main.filename.match /boot\.js/
   pingServer = new Ping
                         checkFunction: (cb) ->
                           actionBase.BaseModel.testConnection (err) ->
-                            if err
-                              cb false
-                            else
-                              cb true
+                            cb err
 
   pingServer.start()
 

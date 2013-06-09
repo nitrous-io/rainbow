@@ -20,7 +20,7 @@
   , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#4d8c8cda6fa85c0d6ea5adedf6fb4aef45f390af"
   , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#6c9a46a169ede031b43c44c4428342c58ed216b4"
   , "airbrake"      : "git+ssh://git@github.com:action-io/node-airbrake.git#1595e7f7d0873acb5339fe326a85ccf8c1f500bf"
-  , "ping"          : "git+ssh://git@github.com:action-io/ping.git#309a3b327a2095b082cefe39cd8953fd12a9b5b1"
+  , "ping"          : "git+ssh://git@github.com:action-io/ping.git#2114b8349576716e3bb492cdb9a8fa1e97426e50"
   }
 , "devDependencies": {
     "mocha"        : "1.9.x"

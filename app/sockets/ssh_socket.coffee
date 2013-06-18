@@ -35,7 +35,7 @@ module.exports = class SSHSocket extends BaseSocket
           ack?()
 
   onData: (data) ->
-    @pty?.write data
+    @pty?.write data.toString()
 
   onResize: (width, height) ->
     @pty?.resize width, height

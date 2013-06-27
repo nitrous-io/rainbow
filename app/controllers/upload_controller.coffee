@@ -22,7 +22,7 @@ module.exports = class UploadController extends ApplicationController
     this._addCORSHeaders()
     User.verifyUserSession @request.cookies._aio_session, (err, user) =>
       if err || !user
-        @response.send 401, { error: 'You need to sign in or sign up before continuing.' }
+        return @response.send 401, { error: 'You need to sign in or sign up before continuing.' }
 
       tokens = []
       for fieldName, fileObjs of @request.files
@@ -31,4 +31,3 @@ module.exports = class UploadController extends ApplicationController
 
       status = if tokens.length > 0 then 200 else 422
       @response.send status, { tokens: tokens }
-

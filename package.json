@@ -15,7 +15,6 @@
   , "pg"            : "0.9.x"
   , "sockjs"        : "0.3.x"
   , "rbytes"        : "0.0.x"
-  , "winston"       : "0.6.x"
   , "pty.js"        : "git+ssh://git@github.com:action-io/pty.js.git#57e7654ee62eb1847fb69c94f70b8f53d543c17f"
   , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#4d8c8cda6fa85c0d6ea5adedf6fb4aef45f390af"
   , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#6c9a46a169ede031b43c44c4428342c58ed216b4"

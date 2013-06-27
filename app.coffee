@@ -42,8 +42,6 @@ else
     console.log err.message
     console.log err.stack
 
-logger = require './app/lib/logger'
-
 if require.main == module || require.main.filename.match /boot\.js/
   server = http.createServer app
 
@@ -63,17 +61,16 @@ if require.main == module || require.main.filename.match /boot\.js/
 
   server.listen(process.env.PORT || 4000)
   unless address = server.address()
-    logger.info 'Could not start Rainbow!'
+    console.error 'Could not start Rainbow!'
     return
 
   # This is a server that will be used by monitoring services (such as Datadog, etc.)
   # to ping to see if Rainbow is up
   pingServer = new Ping
-                        checkFunction: (cb) ->
-                          actionBase.BaseModel.testConnection (err) ->
-                            cb err
+    checkFunction: (cb) ->
+      actionBase.BaseModel.testConnection (err) ->
+        cb err
 
   pingServer.start()
 
-  logger.info "Rainbow listening on port #{address.port} in #{env} mode"
-
+  console.log "Rainbow listening on port #{address.port} in #{env} mode"

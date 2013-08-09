@@ -1,2 +1,2 @@
-foreman start -p 4000 -f Procfile.development
+foreman start -f Procfile.development
 

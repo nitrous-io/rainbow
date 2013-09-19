@@ -39,6 +39,11 @@ describe 'SSHSocket', ->
       doAction()
       expect(Box.findById).to.have.been.calledWith 111, ['owner_id', 'host', 'port']
 
+    it 'sets sshStarted to be false', ->
+      socket.sshStarted = true
+      doAction()
+      expect(socket.sshStarted).to.be.false
+
     context 'when finding a box with a given id fails with error', ->
       beforeEach ->
         error = new Error 'some error'
@@ -252,19 +257,33 @@ describe 'SSHSocket', ->
     context 'when a pty session does not exist', ->
       it 'does nothing', ->
         socket.emit 'd', 'some data'
+        # no error should happen
 
     context 'when a pty session exists', ->
-      context 'when data is a string', ->
-        it 'writes data to pty', ->
-          socket.pty = { write: sinon.spy() }
-          socket.emit 'd', 'some data'
-          expect(socket.pty.write).to.have.been.calledWith 'some data'
+      beforeEach ->
+        socket.pty = { write: sinon.spy() }
 
-      context 'when data is not a string', ->
-        it 'converts data to string and writes to pty', ->
-          socket.pty = { write: sinon.spy() }
-          socket.emit 'd', 1234
-          expect(socket.pty.write).to.have.been.calledWith '1234'
+      context 'when ssh session is started', ->
+        beforeEach ->
+          socket.sshStarted = true
+
+        context 'when data is a string', ->
+          it 'writes data to pty', ->
+            socket.emit 'd', 'some data'
+            expect(socket.pty.write).to.have.been.calledWith 'some data'
+
+        context 'when data is not a string', ->
+          it 'converts data to string and writes to pty', ->
+            socket.emit 'd', 1234
+            expect(socket.pty.write).to.have.been.calledWith '1234'
+
+      context 'when ssh session is not yet started', ->
+        beforeEach ->
+          socket.sshStarted = false
+
+        it 'does nothing', ->
+          socket.emit 'd', 'some data'
+          expect(socket.pty.write).not.to.have.been.calledWith 'some data'
 
   context 'event: r', ->
     context 'when a pty session does not exist', ->

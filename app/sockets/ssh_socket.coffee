@@ -14,13 +14,16 @@ module.exports = class SSHSocket extends BaseSocket
     this.on 'd',     _.bind(@onData,   this)
     this.on 'r',     _.bind(@onResize, this)
     this.on 'kill',  _.bind(@onKill,   this)
+    @sshStarted = false
 
   destroy: ->
+    @sshStarted = false
     @pty?.destroy()
     @pty = null
     @box = null
 
   onStart: (boxId, ack) ->
+    @sshStarted = false
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
       return unless @connection && @connection.isAuthenticated()
       return ack?('failed to fetch box') if err
@@ -35,7 +38,7 @@ module.exports = class SSHSocket extends BaseSocket
           ack?()
 
   onData: (data) ->
-    @pty?.write data.toString()
+    @pty?.write data.toString() if @sshStarted
 
   onResize: (width, height) ->
     @pty?.resize width, height
@@ -65,8 +68,9 @@ module.exports = class SSHSocket extends BaseSocket
           deleteKeyFile ->
             callback err
           return
-        @pty.once 'data', ->
+        @pty.once 'data', =>
           deleteKeyFile()
+          @sshStarted = true
         @pty.on 'data',  _.bind(@onPTYData, this)
         @pty.on 'close', _.bind(@onPTYClose, this)
         callback null

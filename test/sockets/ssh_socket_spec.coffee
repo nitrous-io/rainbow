@@ -322,13 +322,15 @@ describe 'SSHSocket', ->
     mockPty = null
 
     beforeEach ->
-      mockPty = socket.pty = { destroy: -> }
+      mockPty = socket.pty = { destroy: (->), removeAllListeners: -> }
       sinon.stub socket.pty, 'destroy'
+      sinon.stub socket.pty, 'removeAllListeners'
       socket.box = new Box
       socket.destroy()
 
     it 'destroys and nullifies @pty', ->
       expect(mockPty.destroy).to.have.been.called
+      expect(mockPty.removeAllListeners).to.have.been.called
       expect(socket.pty).not.to.exist
 
     it 'nullifies @box', ->

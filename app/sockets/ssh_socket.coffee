@@ -18,9 +18,10 @@ module.exports = class SSHSocket extends BaseSocket
 
   destroy: ->
     @sshStarted = false
+    @pty?.removeAllListeners()
     @pty?.destroy()
-    @pty = null
-    @box = null
+    @pty = undefined
+    @box = undefined
 
   onStart: (boxId, ack) ->
     @sshStarted = false

@@ -48,7 +48,7 @@ module.exports = class SFTPSocket extends BaseSocket
     @sftp?.ls path, (err, fileListing) =>
       ack? err?.toString(), path, fileListing
 
-  onRead: (path, ack) ->
+  onRead: (path, download=false, ack) ->
     return unless @sftp
     @sftp.ls path, (err, list) =>
       if err
@@ -70,7 +70,10 @@ module.exports = class SFTPSocket extends BaseSocket
               else if fileType.match /icon/
                 ack? null, path, 'image/x-icon', fileBuffer?.toString('base64')
               else
-                ack? 'aio:not_text_file', path
+                if download
+                  ack? null, path, 'application/octet-stream', fileBuffer?.toString('base64')
+                else
+                  ack? 'aio:not_text_file', path
         else
           ack? 'aio:file_too_large', path
 

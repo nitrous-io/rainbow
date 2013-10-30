@@ -4,6 +4,7 @@ Box = require '../models/box'
 SSHHelper = require('action-base').SSHHelper
 SFTP = require 'sftp.js'
 fs = require 'fs'
+Path = require 'path'
 app = require '../../app'
 
 module.exports = class SFTPSocket extends BaseSocket
@@ -14,6 +15,7 @@ module.exports = class SFTPSocket extends BaseSocket
     this.on 'start',      _.bind(@onStart,      this)
     this.on 'list',       _.bind(@onList,       this)
     this.on 'read',       _.bind(@onRead,       this)
+    this.on 'download',   _.bind(@onDownload,   this)
     this.on 'write',      _.bind(@onWrite,      this)
     this.on 'writeNew',   _.bind(@onWriteNew,   this)
     this.on 'makeDir',    _.bind(@onMakeDir,    this)
@@ -48,7 +50,7 @@ module.exports = class SFTPSocket extends BaseSocket
     @sftp?.ls path, (err, fileListing) =>
       ack? err?.toString(), path, fileListing
 
-  onRead: (path, download=false, ack) ->
+  onRead: (path, ack) ->
     return unless @sftp
     @sftp.ls path, (err, list) =>
       if err
@@ -70,12 +72,31 @@ module.exports = class SFTPSocket extends BaseSocket
               else if fileType.match /icon/
                 ack? null, path, 'image/x-icon', fileBuffer?.toString('base64')
               else
-                if download
-                  ack? null, path, 'application/octet-stream', fileBuffer?.toString('base64')
-                else
-                  ack? 'aio:not_text_file', path
+                ack? 'aio:not_text_file', path
         else
           ack? 'aio:file_too_large', path
+
+  onDownload: (path, ack) ->
+    return unless @sftp
+    @sftp.ls path, (err, list) =>
+      if err
+        ack? err.toString(), path
+      else
+        if list[0]
+          @sftp.get path, (err, fileBuffer, fileType) =>
+            if err
+              ack? err.toString(), null
+            else
+              boxId = @box.id
+              token = new Buffer(path).toString('hex')
+              filePath = Path.join app.settings.downloadsDir, "#{boxId}_#{token}"
+
+              fs.writeFile filePath, fileBuffer, (err) ->
+                console.log err
+                if err
+                  ack? "download failed", null
+                else
+                  ack? null, token
 
   putFile: (path, content, ack) ->
     @sftp.putData path, content, (err) =>

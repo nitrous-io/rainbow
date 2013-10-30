@@ -211,8 +211,8 @@ describe 'SFTPSocket', ->
     beforeEach ->
       ackSpy = sinon.spy()
 
-    doAction = (download=false) ->
-      socket.emit 'read', 'some/path', download, ackSpy
+    doAction = ->
+      socket.emit 'read', 'some/path', ackSpy
 
     context 'when @sftp is not yet initialized', ->
       beforeEach ->
@@ -312,15 +312,9 @@ describe 'SFTPSocket', ->
               beforeEach ->
                 sftp.get.callsArgWith 1, null, fileBuffer, 'some/path: Zip archive data, at least v1.0 to extract'
 
-              context 'with the download option', ->
-                it 'calls ack callback with the octet-stream mime and buffer', ->
-                  doAction(true)
-                  expect(ackSpy).to.have.been.calledWith null, 'some/path', 'application/octet-stream', 'c29tZSB0ZXh0'
-
-              context 'witout the download option', ->
-                it 'calls ack callback with "aio:not_text_file" error', ->
-                  doAction(false)
-                  expect(ackSpy).to.have.been.calledWith 'aio:not_text_file', 'some/path', undefined
+              it 'calls ack callback with "aio:not_text_file" error', ->
+                doAction()
+                expect(ackSpy).to.have.been.calledWith 'aio:not_text_file', 'some/path', undefined
 
       context 'when ls returns some other error', ->
         error = 'File system completely messed up.'

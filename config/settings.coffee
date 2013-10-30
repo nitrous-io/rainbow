@@ -10,6 +10,7 @@ settings =
     corsAllowedOrigin: process.env.CORS_ALLOWED_ORIGIN
     socketIOAllowedOrigin: process.env.SOCKETIO_ALLOWED_ORIGIN
     airbrakeAPIKey: process.env.AIRBRAKE_API_KEY
+    downloadsDir: process.env.DOWNLOADS_DIR
   development: {}
   test: {}
   staging: {}

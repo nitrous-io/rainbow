@@ -17,4 +17,5 @@ global.assert = global.chai.assert
 global.chai.use sinonChai
 
 process.env.SECRET_TOKEN = 'secret_token'
+process.env.DOWNLOADS_DIR = 'test/fixtures'
 

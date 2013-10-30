@@ -22,3 +22,14 @@ describe 'ApplicationController', ->
       expect(response.set).to.have.been.calledWith 'Pragma', 'no-cache'
       expect(response.set).to.have.been.calledWith 'Cache-Control', 'no-store, no-cache, must-revalidate'
 
+  describe '#_addCORSHeaders', ->
+    beforeEach ->
+      controller.response.set = sinon.stub()
+      controller._addCORSHeaders()
+
+    it 'adds headers for CORS preflight', ->
+      response = controller.response
+      expect(response.set).to.have.been.calledWith 'Access-Control-Allow-Origin',  app.settings.corsAllowedOrigin
+      expect(response.set).to.have.been.calledWith 'Access-Control-Allow-Methods', app.settings.corsAllowedMethods
+      expect(response.set).to.have.been.calledWith 'Access-Control-Allow-Headers', app.settings.corsAllowedHeaders
+      expect(response.set).to.have.been.calledWith 'Access-Control-Allow-Credentials', true

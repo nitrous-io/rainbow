@@ -92,7 +92,6 @@ module.exports = class SFTPSocket extends BaseSocket
               filePath = Path.join app.settings.downloadsDir, "#{boxId}_#{token}"
 
               fs.writeFile filePath, fileBuffer, (err) ->
-                console.log err
                 if err
                   ack? "download failed", null
                 else

@@ -31,6 +31,9 @@ describe 'DownloadController', ->
         expect(res.headers['content-type']).to.match /json/
         expect(res.body).to.deep.equal { error: 'You need to sign in or sign up before continuing.' }
 
+      it 'responds with CORS headers', ->
+        hasCORSHeaders res
+
     context 'when signed in', ->
       req = null
 
@@ -60,6 +63,9 @@ describe 'DownloadController', ->
           expect(res.headers['content-type']).to.match /json/
           expect(res.body).to.deep.equal { error: 'Invalid box id.' }
 
+        it 'responds with CORS headers', ->
+          hasCORSHeaders res
+
       context 'when provided a valid box id', ->
         box = { isAccessibleByUserId: -> }
 
@@ -85,6 +91,9 @@ describe 'DownloadController', ->
             expect(res.headers['content-type']).to.match /json/
             expect(res.body).to.deep.equal { error: "You don't have access to the given box." }
 
+          it 'responds with CORS headers', ->
+            hasCORSHeaders res
+
         context 'when box is accessible by the user', ->
           beforeEach (done) ->
             sinon.stub box, 'isAccessibleByUserId', (id, callback) ->
@@ -102,6 +111,9 @@ describe 'DownloadController', ->
             expect(res.headers['content-disposition']).to.match /attachment/
             expect(res.headers['content-disposition']).to.match /1_abcd/
             expect(res.headers['content-type']).to.equal 'application/octet-stream'
+
+          it 'responds with CORS headers', ->
+            hasCORSHeaders res
 
           it 'unlinks the file after serving', ->
             expect(fs.unlink).to.have.been.calledWith "#{app.settings.downloadsDir}/1_abcd"

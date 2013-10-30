@@ -19,3 +19,5 @@ global.chai.use sinonChai
 process.env.SECRET_TOKEN = 'secret_token'
 process.env.DOWNLOADS_DIR = 'test/fixtures'
 
+global.hasNoCacheHeaders = require './support/has_no_cache_headers'
+global.hasCORSHeaders = require './support/has_cors_headers'

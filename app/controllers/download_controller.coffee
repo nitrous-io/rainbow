@@ -6,7 +6,7 @@ path = require 'path'
 
 module.exports = class DownloadController extends ApplicationController
   index: ->
-    #this._addCORSHeaders()
+    this._addCORSHeaders()
     User.verifyUserSession @request.cookies._aio_session, (err, user) =>
       if err || !user
         return @response.send 401, { error: 'You need to sign in or sign up before continuing.' }

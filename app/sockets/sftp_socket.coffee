@@ -82,20 +82,24 @@ module.exports = class SFTPSocket extends BaseSocket
       if err
         ack? err.toString(), path
       else
-        if list[0]
+        if list[0] && list[0][2] <= @sizeLimit
           @sftp.get path, (err, fileBuffer, fileType) =>
             if err
               ack? err.toString(), null
             else
-              boxId = @box.id
               token = new Buffer(path).toString('hex')
-              filePath = Path.join app.settings.downloadsDir, "#{boxId}_#{token}"
+              basename = Path.basename path
+              filePath = Path.join app.settings.downloadsDir, token, basename
 
+              fs.mkdirSync Path.dirname(filePath)
               fs.writeFile filePath, fileBuffer, (err) ->
                 if err
-                  ack? "download failed", null
+                  ack? "aio:download_failed", null
                 else
-                  ack? null, token
+                  ack? null, Path.join(token, basename)
+        else
+          ack? 'aio:file_too_large', path
+
 
   putFile: (path, content, ack) ->
     @sftp.putData path, content, (err) =>

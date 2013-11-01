@@ -22,7 +22,7 @@ describe 'DownloadController', ->
       beforeEach (done) ->
         err = res = null
         request(app)
-          .get('/download?box_id=1&token=abcd')
+          .get('/download?id=1&path=abcd/path')
           .end (e, r) ->
             err = e; res = r; done()
 
@@ -42,11 +42,23 @@ describe 'DownloadController', ->
           expect(session).to.equal 'some_session'
           callback null, new User
         req = request(app)
-          .get('/download?box_id=1&token=abcd')
+          .get('/download?id=1&path=abcd/path')
           .set('Cookie', '_aio_session=some_session')
 
       afterEach ->
         User.verifyUserSession.restore()
+
+      context 'when box id or path is not provided', ->
+        beforeEach (done) ->
+          request(app).get('/download')
+                      .set('Cookie', '_aio_session=some_session')
+                      .end (e, r) ->
+                        err = e; res = r; done()
+
+        it 'responds with 404 invalid box id', ->
+          expect(res.statusCode).to.equal 404
+          expect(res.headers['content-type']).to.match /json/
+          expect(res.body).to.deep.equal { error: 'Box id and path must be provided.' }
 
       context 'when provided an invalid box id', ->
         beforeEach (done) ->
@@ -98,22 +110,26 @@ describe 'DownloadController', ->
           beforeEach (done) ->
             sinon.stub box, 'isAccessibleByUserId', (id, callback) ->
               callback null, true
-            sinon.stub fs, 'unlink', (callback) ->
+            sinon.stub fs, 'unlinkSync'
+            sinon.stub fs, 'rmdirSync'
             req.end (e, r) ->
               err = e; res = r; done()
 
           afterEach ->
             box.isAccessibleByUserId.restore()
-            fs.unlink.restore()
+            fs.unlinkSync.restore()
+            fs.rmdirSync.restore()
 
           it 'transfers requested file as an attachment', ->
             expect(res.statusCode).to.equal 200
-            expect(res.headers['content-disposition']).to.match /attachment/
-            expect(res.headers['content-disposition']).to.match /1_abcd/
+            expect(res.headers['content-disposition']).to.match /path/
             expect(res.headers['content-type']).to.equal 'application/octet-stream'
 
           it 'responds with CORS headers', ->
             hasCORSHeaders res
 
           it 'unlinks the file after serving', ->
-            expect(fs.unlink).to.have.been.calledWith "#{app.settings.downloadsDir}/1_abcd"
+            expect(fs.unlinkSync).to.have.been.calledWith "#{app.settings.downloadsDir}/abcd/path"
+
+          it 'removes the directory that was holding the file', ->
+            expect(fs.rmdirSync).to.have.been.calledWith "#{app.settings.downloadsDir}/abcd"

@@ -4,6 +4,7 @@ Box = require '../models/box'
 SSHHelper = require('action-base').SSHHelper
 SFTP = require 'sftp.js'
 fs = require 'fs'
+Path = require 'path'
 app = require '../../app'
 
 module.exports = class SFTPSocket extends BaseSocket
@@ -14,6 +15,7 @@ module.exports = class SFTPSocket extends BaseSocket
     this.on 'start',      _.bind(@onStart,      this)
     this.on 'list',       _.bind(@onList,       this)
     this.on 'read',       _.bind(@onRead,       this)
+    this.on 'download',   _.bind(@onDownload,   this)
     this.on 'write',      _.bind(@onWrite,      this)
     this.on 'writeNew',   _.bind(@onWriteNew,   this)
     this.on 'makeDir',    _.bind(@onMakeDir,    this)
@@ -73,6 +75,31 @@ module.exports = class SFTPSocket extends BaseSocket
                 ack? 'aio:not_text_file', path
         else
           ack? 'aio:file_too_large', path
+
+  onDownload: (path, ack) ->
+    return unless @sftp
+    @sftp.ls path, (err, list) =>
+      if err
+        ack? err.toString(), path
+      else
+        if list[0] && list[0][2] <= @sizeLimit
+          @sftp.get path, (err, fileBuffer, fileType) =>
+            if err
+              ack? err.toString(), null
+            else
+              token = new Buffer(path).toString('hex')
+              basename = Path.basename path
+              filePath = Path.join app.settings.downloadsDir, token, basename
+
+              fs.mkdirSync Path.dirname(filePath)
+              fs.writeFile filePath, fileBuffer, (err) ->
+                if err
+                  ack? "aio:download_failed", null
+                else
+                  ack? null, Path.join(token, basename)
+        else
+          ack? 'aio:file_too_large', path
+
 
   putFile: (path, content, ack) ->
     @sftp.putData path, content, (err) =>

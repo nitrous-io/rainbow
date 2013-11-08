@@ -2,13 +2,6 @@ ApplicationController = require './application_controller'
 User = require '../models/user'
 
 module.exports = class UploadController extends ApplicationController
-  _addCORSHeaders: ->
-    settings = @app.settings
-    @response.set 'Access-Control-Allow-Origin',  settings.corsAllowedOrigin
-    @response.set 'Access-Control-Allow-Methods', settings.corsAllowedMethods
-    @response.set 'Access-Control-Allow-Headers', settings.corsAllowedHeaders
-    @response.set 'Access-Control-Allow-Credentials', true
-
   _generateFileToken: (fileName, tmpFilePath) ->
     @app.messageVerifier.generate fileName: fileName, tmpFilePath: tmpFilePath
 

@@ -3,18 +3,6 @@ ApplicationController = require '../../app/controllers/application_controller'
 User = require '../../app/models/user'
 app = require '../../app'
 
-hasNoCacheHeaders = (response) ->
-  headers = response.headers
-  expect(headers).to.have.property 'pragma', 'no-cache'
-  expect(headers).to.have.property 'cache-control', 'no-store, no-cache, must-revalidate'
-
-hasCORSHeaders = (response) ->
-  headers = response.headers
-  expect(headers).to.have.property 'access-control-allow-origin',  app.settings.corsAllowedOrigin
-  expect(headers).to.have.property 'access-control-allow-methods', app.settings.corsAllowedMethods
-  expect(headers).to.have.property 'access-control-allow-headers', app.settings.corsAllowedHeaders
-  expect(headers).to.have.property 'access-control-allow-credentials', 'true'
-
 describe 'UploadController', ->
   controller = null
 
@@ -37,18 +25,6 @@ describe 'UploadController', ->
       expect(obj.tmpFilePath).to.equal '/tmp/file/path2'
 
       expect(token).not.to.equal token2
-
-  describe '#_addCORSHeaders', ->
-    beforeEach ->
-      controller.response.set = sinon.stub()
-      controller._addCORSHeaders()
-
-    it 'adds headers for CORS preflight', ->
-      response = controller.response
-      expect(response.set).to.have.been.calledWith 'Access-Control-Allow-Origin',  app.settings.corsAllowedOrigin
-      expect(response.set).to.have.been.calledWith 'Access-Control-Allow-Methods', app.settings.corsAllowedMethods
-      expect(response.set).to.have.been.calledWith 'Access-Control-Allow-Headers', app.settings.corsAllowedHeaders
-      expect(response.set).to.have.been.calledWith 'Access-Control-Allow-Credentials', true
 
   describe 'OPTIONS options', ->
     err = res = null

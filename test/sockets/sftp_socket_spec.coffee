@@ -311,10 +311,120 @@ describe 'SFTPSocket', ->
             context 'when the file type is not text, image or icon file', ->
               beforeEach ->
                 sftp.get.callsArgWith 1, null, fileBuffer, 'some/path: Zip archive data, at least v1.0 to extract'
-                doAction()
 
               it 'calls ack callback with "aio:not_text_file" error', ->
+                doAction()
                 expect(ackSpy).to.have.been.calledWith 'aio:not_text_file', 'some/path', undefined
+
+      context 'when ls returns some other error', ->
+        error = 'File system completely messed up.'
+
+        beforeEach ->
+          sftp.ls.callsArgWith 1, error
+          doAction()
+
+        it 'does not run get command', ->
+          expect(sftp.get).not.to.have.been.called
+
+        it 'calls ack callback with the error', ->
+          expect(ackSpy).to.have.been.calledWith error, 'some/path'
+
+  describe 'event: download', ->
+    ackSpy = null
+
+    beforeEach ->
+      ackSpy = sinon.spy()
+
+    doAction = ->
+      socket.emit 'download', 'some/path', ackSpy
+
+    context 'when @sftp is not yet initialized', ->
+      beforeEach ->
+        socket.sftp = null
+
+      it 'does nothing', ->
+        expect(->
+          doAction()
+        ).not.to.throw Error
+
+    context 'when @sftp exists', ->
+      sftp = null
+
+      beforeEach ->
+        sftp = socket.sftp = new SFTP {}
+        sinon.stub sftp, 'get'
+        sinon.stub sftp, 'ls'
+
+      it 'runs ls command', ->
+        doAction()
+        expect(sftp.ls).to.have.been.calledWith 'some/path'
+
+      context 'when ls returns no error', ->
+        context 'when the file size is more than the size limit', ->
+          beforeEach ->
+            sftp.ls.callsArgWith 1, null, [ ['some_file', false, socket.sizeLimit + 1] ]
+            doAction()
+
+          it 'does not run get command', ->
+            expect(sftp.get).not.to.have.been.called
+
+          it 'calls ack callback with "aio:file_too_large" error', ->
+            expect(ackSpy).to.have.been.calledWith 'aio:file_too_large', 'some/path'
+
+        context 'when the file size is less than or equal to size limit', ->
+          beforeEach ->
+            sftp.ls.callsArgWith 1, null, [ ['some_file', false, socket.sizeLimit] ]
+
+          it 'runs get command', ->
+            doAction()
+            expect(sftp.get).to.have.been.calledWith 'some/path'
+
+          context 'when get command returns error', ->
+            error = new Error 'some error'
+
+            beforeEach ->
+              sftp.get.callsArgWith 1, error
+              doAction()
+
+            it 'calls ack callback with an error', ->
+              expect(ackSpy).to.have.been.calledWith error.toString(), null
+
+          context 'when get command returns file buffer', ->
+            fileBuffer = new Buffer('some text')
+            token = new Buffer('some/path').toString('hex')
+
+            beforeEach ->
+              sinon.stub fs, 'mkdirSync'
+              sinon.stub fs, 'writeFile'
+              sftp.get.callsArgWith 1, null, fileBuffer, 'some/path: Ruby module source, ASCII text'
+
+            afterEach ->
+              fs.mkdirSync.restore()
+              fs.writeFile.restore()
+
+            it 'creates a directory with a token', ->
+              doAction()
+              expect(fs.mkdirSync).to.have.been.calledWith "#{app.settings.downloadsDir}/#{token}"
+
+            it 'writes file buffer to the created directory', ->
+              doAction()
+              expect(fs.writeFile).to.have.been.calledWith "#{app.settings.downloadsDir}/#{token}/path", fileBuffer, sinon.match.func
+
+            context 'when theres an error in writing the file', ->
+              beforeEach ->
+                fs.writeFile.callsArgWith 2, 'some_error'
+
+              it 'calls ack callback with an download failed error', ->
+                doAction()
+                expect(ackSpy).to.have.been.calledWith "aio:download_failed", null
+
+            context 'when the file is written to downloads directory', ->
+              beforeEach ->
+                fs.writeFile.callsArgWith 2, null
+
+              it 'calls ack callback with a relative path to download file', ->
+                doAction()
+                expect(ackSpy).to.have.been.calledWith null, "#{token}/path"
 
       context 'when ls returns some other error', ->
         error = 'File system completely messed up.'

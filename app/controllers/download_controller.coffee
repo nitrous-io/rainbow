@@ -31,5 +31,5 @@ module.exports = class DownloadController extends ApplicationController
           @response.download filePath, (err) ->
             # delete the file after one download attempt,
             # whatever the outcome is.
-            fs.unlinkSync filePath
-            fs.rmdirSync Path.dirname(filePath)
+            fs.unlink filePath, (err) ->
+              fs.rmdir Path.dirname(filePath)

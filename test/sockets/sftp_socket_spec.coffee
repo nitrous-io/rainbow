@@ -394,37 +394,45 @@ describe 'SFTPSocket', ->
             token = new Buffer('some/path').toString('hex')
 
             beforeEach ->
-              sinon.stub fs, 'mkdirSync'
+              sinon.stub fs, 'mkdir'
               sinon.stub fs, 'writeFile'
               sftp.get.callsArgWith 1, null, fileBuffer, 'some/path: Ruby module source, ASCII text'
 
             afterEach ->
-              fs.mkdirSync.restore()
+              fs.mkdir.restore()
               fs.writeFile.restore()
 
-            it 'creates a directory with a token', ->
-              doAction()
-              expect(fs.mkdirSync).to.have.been.calledWith "#{app.settings.downloadsDir}/#{token}"
-
-            it 'writes file buffer to the created directory', ->
-              doAction()
-              expect(fs.writeFile).to.have.been.calledWith "#{app.settings.downloadsDir}/#{token}/path", fileBuffer, sinon.match.func
-
-            context 'when theres an error in writing the file', ->
+            context 'when it failes to create a directory with the given token', ->
               beforeEach ->
-                fs.writeFile.callsArgWith 2, 'some_error'
+                fs.mkdir.withArgs("#{app.settings.downloadsDir}/#{token}").yields "some error"
 
               it 'calls ack callback with an download failed error', ->
                 doAction()
                 expect(ackSpy).to.have.been.calledWith "aio:download_failed", null
 
-            context 'when the file is written to downloads directory', ->
+            context 'when it creates a directory with a token', ->
               beforeEach ->
-                fs.writeFile.callsArgWith 2, null
+                fs.mkdir.withArgs("#{app.settings.downloadsDir}/#{token}").yields null
 
-              it 'calls ack callback with a relative path to download file', ->
+              it 'writes file buffer to the created directory', ->
                 doAction()
-                expect(ackSpy).to.have.been.calledWith null, "#{token}/path"
+                expect(fs.writeFile).to.have.been.calledWith "#{app.settings.downloadsDir}/#{token}/path", fileBuffer, sinon.match.func
+
+              context 'when theres an error in writing the file', ->
+                beforeEach ->
+                  fs.writeFile.callsArgWith 2, 'some_error'
+
+                it 'calls ack callback with an download failed error', ->
+                  doAction()
+                  expect(ackSpy).to.have.been.calledWith "aio:download_failed", null
+
+              context 'when the file is written to downloads directory', ->
+                beforeEach ->
+                  fs.writeFile.callsArgWith 2, null
+
+                it 'calls ack callback with a relative path to download file', ->
+                  doAction()
+                  expect(ackSpy).to.have.been.calledWith null, "#{token}/path"
 
       context 'when ls returns some other error', ->
         error = 'File system completely messed up.'

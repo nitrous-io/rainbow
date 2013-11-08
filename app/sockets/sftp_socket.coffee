@@ -91,12 +91,15 @@ module.exports = class SFTPSocket extends BaseSocket
               basename = Path.basename path
               filePath = Path.join app.settings.downloadsDir, token, basename
 
-              fs.mkdirSync Path.dirname(filePath)
-              fs.writeFile filePath, fileBuffer, (err) ->
+              fs.mkdir Path.dirname(filePath), (err) ->
                 if err
                   ack? "aio:download_failed", null
                 else
-                  ack? null, Path.join(token, basename)
+                  fs.writeFile filePath, fileBuffer, (err) ->
+                    if err
+                      ack? "aio:download_failed", null
+                    else
+                      ack? null, Path.join(token, basename)
         else
           ack? 'aio:file_too_large', path
 

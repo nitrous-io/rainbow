@@ -110,15 +110,16 @@ describe 'DownloadController', ->
           beforeEach (done) ->
             sinon.stub box, 'isAccessibleByUserId', (id, callback) ->
               callback null, true
-            sinon.stub fs, 'unlinkSync'
-            sinon.stub fs, 'rmdirSync'
+            sinon.stub fs, 'unlink'
+            fs.unlink.withArgs("#{app.settings.downloadsDir}/abcd/path").yields null
+            sinon.stub fs, 'rmdir'
             req.end (e, r) ->
               err = e; res = r; done()
 
           afterEach ->
             box.isAccessibleByUserId.restore()
-            fs.unlinkSync.restore()
-            fs.rmdirSync.restore()
+            fs.unlink.restore()
+            fs.rmdir.restore()
 
           it 'transfers requested file as an attachment', ->
             expect(res.statusCode).to.equal 200
@@ -128,8 +129,5 @@ describe 'DownloadController', ->
           it 'responds with CORS headers', ->
             hasCORSHeaders res
 
-          it 'unlinks the file after serving', ->
-            expect(fs.unlinkSync).to.have.been.calledWith "#{app.settings.downloadsDir}/abcd/path"
-
           it 'removes the directory that was holding the file', ->
-            expect(fs.rmdirSync).to.have.been.calledWith "#{app.settings.downloadsDir}/abcd"
+            expect(fs.rmdir).to.have.been.calledWith "#{app.settings.downloadsDir}/abcd"

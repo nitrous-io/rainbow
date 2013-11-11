@@ -13,10 +13,10 @@ module.exports = class UploadController extends ApplicationController
   upload: ->
     this._addNoCacheHeaders()
     this._addCORSHeaders()
-    User.verifyUserSession @request.cookies._aio_session, (err, user) =>
-      if err || !user
-        return @response.send 401, { error: 'You need to sign in or sign up before continuing.' }
-
+    @userId = @app.authTokenVerifier.verify(@params.auth_token)
+    unless @userId
+      return @response.send 401, { error: 'You need to sign in or sign up before continuing.' }
+    else
       tokens = []
       for fieldName, fileObjs of @request.files
         for fileObj in fileObjs

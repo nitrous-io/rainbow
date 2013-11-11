@@ -7,10 +7,10 @@ Path = require 'path'
 module.exports = class DownloadController extends ApplicationController
   index: ->
     this._addCORSHeaders()
-    User.verifyUserSession @request.cookies._aio_session, (err, user) =>
-      if err || !user
-        return @response.send 401, { error: 'You need to sign in or sign up before continuing.' }
-
+    @userId = @app.authTokenVerifier.verify(@params.auth_token)
+    unless @userId
+      return @response.send 401, { error: 'You need to sign in or sign up before continuing.' }
+    else
       boxId = @params['id']
       path = @params['path']
 
@@ -22,7 +22,7 @@ module.exports = class DownloadController extends ApplicationController
           return @response.send 403, { error: 'Invalid box id.' }
 
         # check if the user has access to the given box
-        box.isAccessibleByUserId user.id, (err, accessible) =>
+        box.isAccessibleByUserId @userId, (err, accessible) =>
           if !accessible
             return @response.send 403, { error: "You don't have access to the given box." }
 

@@ -22,8 +22,8 @@ require('./config/application')(app)
 
 # message verifier
 MessageVerifier = actionBase.MessageVerifier
+AuthTokenVerifier = actionBase.AuthTokenVerifier
 app.messageVerifier = new MessageVerifier app.settings.secretToken
-AuthTokenVerifier = require './app/lib/auth_token_verifier'
 app.authTokenVerifier = new AuthTokenVerifier 'rainbow', app.messageVerifier
 
 # postgres
@@ -46,14 +46,14 @@ if require.main == module || require.main.filename.match /boot\.js/
   server = http.createServer app
 
   # sockjs
-  SocketConnection = require './app/lib/socket_connection'
+  SocketConnection = actionBase.SocketConnection
   sockets = require './app/sockets'
 
   app.sock = sock = sockjs.createServer
     sockjs_url: 'http://cdn.sockjs.org/sockjs-0.3.min.js'
 
   sock.on 'connection', (ws) ->
-    sc = new SocketConnection(ws, app)
+    sc = new SocketConnection(ws, app.authTokenVerifier)
     sc.register sockets.SSHSocket
     sc.register sockets.SFTPSocket
 

@@ -1,7 +1,8 @@
 _ = require 'underscore'
-BaseSocket = require './base_socket'
+actionBase = require 'action-base'
+BaseSocket = actionBase.BaseSocket
+SSHHelper = actionBase.SSHHelper
 Box = require '../models/box'
-SSHHelper = require('action-base').SSHHelper
 SFTP = require 'sftp.js'
 fs = require 'fs'
 Path = require 'path'

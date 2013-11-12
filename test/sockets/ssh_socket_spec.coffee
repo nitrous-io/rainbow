@@ -1,9 +1,10 @@
+actionBase = require 'action-base'
+BaseSocket = actionBase.BaseSocket
+SocketConnection = actionBase.SocketConnection
+SSHHelper = actionBase.SSHHelper
 SSHSocket = require '../../app/sockets/ssh_socket'
-BaseSocket = require '../../app/sockets/base_socket'
-SocketConnection = require '../../app/lib/socket_connection'
 Box = require '../../app/models/box'
 KeyPair = require '../../app/models/key_pair'
-SSHHelper = require('action-base').SSHHelper
 EventEmitter = require('events').EventEmitter
 pty = require 'pty.js'
 

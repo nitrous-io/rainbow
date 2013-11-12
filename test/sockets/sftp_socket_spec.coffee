@@ -1,8 +1,9 @@
+actionBase = require 'action-base'
+BaseSocket = actionBase.BaseSocket
+SocketConnection = actionBase.SocketConnection
+SSHHelper = actionBase.SSHHelper
 SFTPSocket = require '../../app/sockets/sftp_socket'
-BaseSocket = require '../../app/sockets/base_socket'
-SocketConnection = require '../../app/lib/socket_connection'
 KeyPair = require '../../app/models/key_pair'
-SSHHelper = require('action-base').SSHHelper
 Box = require '../../app/models/box'
 app = require '../../app'
 SFTP = require 'sftp.js'

@@ -1,9 +1,10 @@
 process.env.TERM = 'xterm-256color'
 
 _ = require 'underscore'
-BaseSocket = require './base_socket'
+actionBase = require 'action-base'
+BaseSocket = actionBase.BaseSocket
+SSHHelper = actionBase.SSHHelper
 Box = require '../models/box'
-SSHHelper = require('action-base').SSHHelper
 pty = require 'pty.js'
 
 module.exports = class SSHSocket extends BaseSocket

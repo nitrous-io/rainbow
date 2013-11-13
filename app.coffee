@@ -56,6 +56,7 @@ if require.main == module || require.main.filename.match /boot\.js/
     sc = new SocketConnection(ws, app.authTokenVerifier)
     sc.register sockets.SSHSocket
     sc.register sockets.SFTPSocket
+    sc.register sockets.PartsSocket
 
   sock.installHandlers server, prefix: '/ws'
 

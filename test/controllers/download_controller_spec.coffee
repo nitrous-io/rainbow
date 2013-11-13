@@ -38,20 +38,18 @@ describe 'DownloadController', ->
       req = null
 
       beforeEach ->
-        sinon.stub User, 'verifyUserSession', (session, callback) ->
-          expect(session).to.equal 'some_session'
-          callback null, new User
+        sinon.stub(app.authTokenVerifier, 'verify').withArgs('auth_token').returns 1
         req = request(app)
-          .get('/download?id=1&path=abcd/path')
-          .set('Cookie', '_aio_session=some_session')
+          .get('/download')
+          .query({ id:1, auth_token: 'auth_token', path: 'abcd/path' })
 
       afterEach ->
-        User.verifyUserSession.restore()
+        app.authTokenVerifier.verify.restore()
 
       context 'when box id or path is not provided', ->
         beforeEach (done) ->
           request(app).get('/download')
-                      .set('Cookie', '_aio_session=some_session')
+                      .query({ auth_token: 'auth_token' })
                       .end (e, r) ->
                         err = e; res = r; done()
 

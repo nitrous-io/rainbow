@@ -68,15 +68,13 @@ describe 'UploadController', ->
       req = null
 
       beforeEach ->
-        sinon.stub User, 'verifyUserSession', (session, callback) ->
-          expect(session).to.equal 'some_session'
-          callback null, new User
+        sinon.stub(app.authTokenVerifier, 'verify').withArgs('auth_token').returns 1
         req = request(app)
           .post('/upload')
-          .set('Cookie', '_aio_session=some_session')
+          .query({ auth_token: 'auth_token' })
 
       afterEach ->
-        User.verifyUserSession.restore()
+        app.authTokenVerifier.verify.restore()
 
       context 'when no file is uploaded', ->
         beforeEach (done) ->

@@ -11,6 +11,7 @@ module.exports = class PartsSocket extends BaseSocket
   initialize: ->
     this.on 'start',      _.bind(@onStart,     this)
     this.on 'list',       _.bind(@onList,      this)
+    this.on 'listAll',    _.bind(@onListAll,   this)
     this.on 'search',     _.bind(@onSearch,    this)
     this.on 'install',    _.bind(@onInstall,   this)
     this.on 'uninstall',  _.bind(@onUninstall, this)
@@ -30,7 +31,7 @@ module.exports = class PartsSocket extends BaseSocket
         @box.findKeyPair (err, keyPair) =>
           return ack?('failed to fetch key pair') if err
           return ack?('key pair not found') unless keyPair
-          @privateKey = keyPair.private_key
+          @ssh = new SSHHelper 'action', @box.host, @box.port, keyPair.private_key
           ack?()
 
   onList: (ack) ->
@@ -64,6 +65,38 @@ module.exports = class PartsSocket extends BaseSocket
           parts.push { name: name, version: version, description: description }
       return ack? null, parts
 
+  onListAll: (ack) ->
+    @ssh.execCommand "#{@partsPath} search && echo && #{@partsPath} list", (err, stdout, stderr) ->
+      if err
+        return ack? err.toString(), null
+
+      lines = stdout.split "\n"
+      lines.pop()
+      parts = []
+      installedList = false
+      for line in lines
+        # after a blank line is found,
+        # rest is installed packages.
+        if line == ''
+          installedList = true
+
+        unless installedList
+          if match = line.match /^(.*)\(([\S]*)\)(.*)$/
+            name = match[1].trim()
+            version = match[2]
+            description = match[3].trim()
+            parts.push { name: name, version: version, description: description, installed: false, installed_version: null }
+        else
+          if match = line.match /^(.*)\(([\S]*)\)$/
+            name = match[1].trim()
+            version = match[2]
+            part = _.find parts, (p) ->
+              (p.name == name)
+            part.installed = true
+            part.installed_version = version
+
+      return ack? null, parts
+
   onInstall: (part, ack) ->
     this._runPartsCommand "install #{part}", (err, stdout, stderr) ->
       if err
@@ -77,5 +110,4 @@ module.exports = class PartsSocket extends BaseSocket
       return ack? null, stdout
 
   _runPartsCommand: (command, callback)->
-    ssh = new SSHHelper 'action', @box.host, @box.port, @privateKey
-    ssh.execCommand "#{@partsPath} #{command}", callback
+    @ssh.execCommand "#{@partsPath} #{command}", callback

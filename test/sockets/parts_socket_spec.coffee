@@ -123,27 +123,29 @@ describe 'PartsSocket', ->
             box.findKeyPair.yields null, keyPair
             doAction()
 
-          it 'stores the private key in an ivar', ->
-            expect(socket.privateKey).to.equal keyPair.private_key
+          it 'stores the ssh helper in an ivar', ->
+            expect(socket.ssh).to.be.an.instanceof SSHHelper
 
           it 'calls ack callback without an error message', ->
             expect(ackSpy).to.have.been.called
 
-
   describe '#_runPartsCommand', ->
     cbSpy = null
+    execCommandStub = null
 
     beforeEach ->
       cbSpy = sinon.spy()
       socket.box = new Box id: 123, host: 'foobar.actionbox.io', port: 2234
-      sinon.stub SSHHelper.prototype, "execCommand"
+      execCommandStub = sinon.stub()
+      socket.ssh = { execCommand: execCommandStub }
 
-    afterEach -> SSHHelper.prototype.execCommand.restore()
+    afterEach ->
+      socket.ssh = null
 
     it 'passes the given command and callback to execCommand', ->
       socket.partsPath = "/home/action/.parts/autoparts/bin/parts"
       socket._runPartsCommand 'list', cbSpy
-      expect(SSHHelper.prototype.execCommand).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts list", cbSpy
+      expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts list", cbSpy
 
   describe 'event: list', ->
     ackSpy = null
@@ -151,6 +153,9 @@ describe 'PartsSocket', ->
     beforeEach ->
       cbSpy = sinon.spy()
       sinon.stub socket, '_runPartsCommand'
+
+    afterEach ->
+      socket._runPartsCommand.restore()
 
     it 'calls _runPartsCommand with list command', ->
       socket.emit 'list', ackSpy
@@ -198,141 +203,202 @@ describe 'PartsSocket', ->
             done()
 
   describe 'event: search', ->
-      ackSpy = null
+    ackSpy = null
 
+    beforeEach ->
+      cbSpy = sinon.spy()
+      sinon.stub socket, '_runPartsCommand'
+
+    afterEach ->
+      socket._runPartsCommand.restore()
+
+    it 'calls _runPartsCommand with search command', ->
+      socket.emit 'search', 'part', ackSpy
+      expect(socket._runPartsCommand).to.have.been.calledWith "search part"
+
+    context 'when _runPartsCommand succeeds', ->
+      context 'when matching packages are found', ->
+        beforeEach ->
+          stdout = '''
+            lua (5.2.2)   Lua: A powerful, fast, lightweight, embeddable scripting language
+            freepascal (2.6.2) Free Pascal: An open source Pascal compiler for Pascal and Object Pascal
+
+          '''
+          socket._runPartsCommand.callsArgWith 1, null, stdout
+
+        it 'returns an array of matching packages', (done) ->
+          socket.emit 'search', 'part', (err, output) ->
+            expect(err).to.be.null
+            expect(output).to.deep.equal [
+              { name: 'lua', version: '5.2.2', description: 'Lua: A powerful, fast, lightweight, embeddable scripting language' }
+              { name: 'freepascal', version: '2.6.2', description: 'Free Pascal: An open source Pascal compiler for Pascal and Object Pascal' }
+            ]
+            done()
+
+    context 'when _runPartsCommand fails', ->
+      context 'with no packages found', ->
+        beforeEach ->
+          socket._runPartsCommand.callsArgWith 1, new Error('Command failed: parts: no package found for "hello"'), null
+
+        it 'returns an error', (done) ->
+          socket.emit 'search', 'part', (err, output) ->
+            expect(err).not.to.be.null
+            expect(output).to.be.null
+            done()
+
+      context 'some other error', ->
+        beforeEach ->
+          socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
+
+        it 'returns an error', (done) ->
+          socket.emit 'search', 'part', (err, output) ->
+            expect(err).not.to.be.null
+            expect(output).to.be.null
+            done()
+
+  describe 'event: listAll', ->
+    ackSpy = null
+    execCommandStub = null
+
+    beforeEach ->
+      ackSpy = sinon.spy()
+      execCommandStub = sinon.stub()
+      socket.partsPath = '/path/to/parts'
+      socket.ssh = { execCommand: execCommandStub }
+
+    afterEach ->
+      socket.partsPath = null
+      socket.ssh = null
+
+    it 'calls execCommand with combined command', ->
+      socket.emit 'listAll', ackSpy
+      expect(execCommandStub).to.have.been.calledWith "/path/to/parts search && echo && /path/to/parts list", sinon.match.func
+
+    context 'when execCommand succeeds', ->
       beforeEach ->
-        cbSpy = sinon.spy()
-        sinon.stub socket, '_runPartsCommand'
+        stdout = '''
+          lua (5.2.2)   Lua: A powerful, fast, lightweight, embeddable scripting language
+          freepascal (2.6.2) Free Pascal: An open source Pascal compiler for Pascal and Object Pascal
+          meteor (0.6.5.1) A real-time web development platform
 
-      it 'calls _runPartsCommand with search command', ->
-        socket.emit 'search', 'part', ackSpy
-        expect(socket._runPartsCommand).to.have.been.calledWith "search part"
+          lua (5.2.2)
+          freepascal (2.5.4)
 
-      context 'when _runPartsCommand succeeds', ->
-        context 'when matching packages are found', ->
-          beforeEach ->
-            stdout = '''
-              lua (5.2.2)   Lua: A powerful, fast, lightweight, embeddable scripting language
-              freepascal (2.6.2) Free Pascal: An open source Pascal compiler for Pascal and Object Pascal
+        '''
+        execCommandStub.callsArgWith 1, null, stdout
 
-            '''
-            socket._runPartsCommand.callsArgWith 1, null, stdout
+      it 'returns an array of packages with installed and upgradable properties correctly set', (done) ->
+        socket.emit 'listAll', (err, output) ->
+          expect(err).to.be.null
+          expect(output).to.deep.equal [
+            { name: 'lua', version: '5.2.2', description: 'Lua: A powerful, fast, lightweight, embeddable scripting language', installed: true, installed_version: '5.2.2' }
+            { name: 'freepascal', version: '2.6.2', description: 'Free Pascal: An open source Pascal compiler for Pascal and Object Pascal', installed: true, installed_version: '2.5.4' }
+            { name: 'meteor', version: '0.6.5.1', description: 'A real-time web development platform', installed: false, installed_version: null }
+          ]
+          done()
 
-          it 'returns an array of matching packages', (done) ->
-            socket.emit 'search', 'part', (err, output) ->
-              expect(err).to.be.null
-              expect(output).to.deep.equal [
-                { name: 'lua', version: '5.2.2', description: 'Lua: A powerful, fast, lightweight, embeddable scripting language' }
-                { name: 'freepascal', version: '2.6.2', description: 'Free Pascal: An open source Pascal compiler for Pascal and Object Pascal' }
-              ]
-              done()
+    context 'when execCommand fails', ->
+      context 'with some error', ->
+        beforeEach ->
+          execCommandStub.callsArgWith 1, new Error('some error'), null
 
-      context 'when _runPartsCommand fails', ->
-        context 'with no packages found', ->
-          beforeEach ->
-            socket._runPartsCommand.callsArgWith 1, new Error('Command failed: parts: no package found for "hello"'), null
-
-          it 'returns an error', (done) ->
-            socket.emit 'search', 'part', (err, output) ->
-              expect(err).not.to.be.null
-              expect(output).to.be.null
-              done()
-
-        context 'some other error', ->
-          beforeEach ->
-            socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
-
-          it 'returns an error', (done) ->
-            socket.emit 'search', 'part', (err, output) ->
-              expect(err).not.to.be.null
-              expect(output).to.be.null
-              done()
+        it 'returns an error', (done) ->
+          socket.emit 'listAll', (err, output) ->
+            expect(err).not.to.be.null
+            expect(output).to.be.null
+            done()
 
   describe 'event: install', ->
-      ackSpy = null
+    ackSpy = null
 
-      beforeEach ->
-        cbSpy = sinon.spy()
-        sinon.stub socket, '_runPartsCommand'
+    beforeEach ->
+      cbSpy = sinon.spy()
+      sinon.stub socket, '_runPartsCommand'
 
-      it 'calls _runPartsCommand with install command', ->
-        socket.emit 'install', 'redis', ackSpy
-        expect(socket._runPartsCommand).to.have.been.calledWith "install redis"
+    afterEach ->
+      socket._runPartsCommand.restore()
 
-      context 'when _runPartsCommand succeeds', ->
-        context 'when the package is installed', ->
-          stdout = null
+    it 'calls _runPartsCommand with install command', ->
+      socket.emit 'install', 'redis', ackSpy
+      expect(socket._runPartsCommand).to.have.been.calledWith "install redis"
 
-          beforeEach ->
-            stdout = '''
-              => Extracting archive
-              => Installing
-              => Symlinking
-              => Installed redis 2.6.16
-              To start the server:
-                $ parts start redis
-              To stop the server:
-                $ parts stop redis
-              To connect to the server:
-                $ redis-cli
+    context 'when _runPartsCommand succeeds', ->
+      context 'when the package is installed', ->
+        stdout = null
 
-            '''
-            socket._runPartsCommand.callsArgWith 1, null, stdout
+        beforeEach ->
+          stdout = '''
+            => Extracting archive
+            => Installing
+            => Symlinking
+            => Installed redis 2.6.16
+            To start the server:
+              $ parts start redis
+            To stop the server:
+              $ parts stop redis
+            To connect to the server:
+              $ redis-cli
 
-          it 'returns the stdout', (done) ->
-            socket.emit 'install', 'redis', (err, output) ->
-              expect(err).to.be.null
-              expect(output).to.equal stdout
-              done()
+          '''
+          socket._runPartsCommand.callsArgWith 1, null, stdout
 
-      context 'when _runPartsCommand fails', ->
-        context 'some error', ->
-          beforeEach ->
-            socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
+        it 'returns the stdout', (done) ->
+          socket.emit 'install', 'redis', (err, output) ->
+            expect(err).to.be.null
+            expect(output).to.equal stdout
+            done()
 
-          it 'returns an error', (done) ->
-            socket.emit 'install', 'redis', (err, output) ->
-              expect(err).not.to.be.null
-              expect(output).to.be.null
-              done()
+    context 'when _runPartsCommand fails', ->
+      context 'some error', ->
+        beforeEach ->
+          socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
+
+        it 'returns an error', (done) ->
+          socket.emit 'install', 'redis', (err, output) ->
+            expect(err).not.to.be.null
+            expect(output).to.be.null
+            done()
 
   describe 'event: uninstall', ->
-      ackSpy = null
+    ackSpy = null
 
-      beforeEach ->
-        cbSpy = sinon.spy()
-        sinon.stub socket, '_runPartsCommand'
+    beforeEach ->
+      cbSpy = sinon.spy()
+      sinon.stub socket, '_runPartsCommand'
 
-      it 'calls _runPartsCommand with uninstall command', ->
-        socket.emit 'uninstall', 'redis', ackSpy
-        expect(socket._runPartsCommand).to.have.been.calledWith "uninstall redis"
+    afterEach ->
+      socket._runPartsCommand.restore()
 
-      context 'when _runPartsCommand succeeds', ->
-        context 'when the package is uninstalled', ->
-          stdout = null
+    it 'calls _runPartsCommand with uninstall command', ->
+      socket.emit 'uninstall', 'redis', ackSpy
+      expect(socket._runPartsCommand).to.have.been.calledWith "uninstall redis"
 
-          beforeEach ->
-            stdout = '''
-              => Removing symlinks...
-              => Uninstalling...
-              => Uninstalled redis 2.6.16
+    context 'when _runPartsCommand succeeds', ->
+      context 'when the package is uninstalled', ->
+        stdout = null
 
-            '''
-            socket._runPartsCommand.callsArgWith 1, null, stdout
+        beforeEach ->
+          stdout = '''
+            => Removing symlinks...
+            => Uninstalling...
+            => Uninstalled redis 2.6.16
 
-          it 'returns the stdout', (done) ->
-            socket.emit 'uninstall', 'redis', (err, output) ->
-              expect(err).to.be.null
-              expect(output).to.equal stdout
-              done()
+          '''
+          socket._runPartsCommand.callsArgWith 1, null, stdout
 
-      context 'when _runPartsCommand fails', ->
-        context 'some error', ->
-          beforeEach ->
-            socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
+        it 'returns the stdout', (done) ->
+          socket.emit 'uninstall', 'redis', (err, output) ->
+            expect(err).to.be.null
+            expect(output).to.equal stdout
+            done()
 
-          it 'returns an error', (done) ->
-            socket.emit 'uninstall', 'redis', (err, output) ->
-              expect(err).not.to.be.null
-              expect(output).to.be.null
-              done()
+    context 'when _runPartsCommand fails', ->
+      context 'some error', ->
+        beforeEach ->
+          socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
+
+        it 'returns an error', (done) ->
+          socket.emit 'uninstall', 'redis', (err, output) ->
+            expect(err).not.to.be.null
+            expect(output).to.be.null
+            done()

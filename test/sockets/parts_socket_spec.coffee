@@ -143,7 +143,6 @@ describe 'PartsSocket', ->
       socket.ssh = null
 
     it 'passes the given command and callback to execCommand', ->
-      socket.partsPath = "/home/action/.parts/autoparts/bin/parts"
       socket._runPartsCommand 'list', cbSpy
       expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts list", cbSpy
 
@@ -263,7 +262,6 @@ describe 'PartsSocket', ->
     beforeEach ->
       ackSpy = sinon.spy()
       execCommandStub = sinon.stub()
-      socket.partsPath = '/path/to/parts'
       socket.ssh = { execCommand: execCommandStub }
 
     afterEach ->
@@ -272,7 +270,7 @@ describe 'PartsSocket', ->
 
     it 'calls execCommand with combined command', ->
       socket.emit 'listAll', ackSpy
-      expect(execCommandStub).to.have.been.calledWith "/path/to/parts search && echo && /path/to/parts list", sinon.match.func
+      expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts search && echo && /home/action/.parts/autoparts/bin/parts list", sinon.match.func
 
     context 'when execCommand succeeds', ->
       beforeEach ->

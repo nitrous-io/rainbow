@@ -5,6 +5,8 @@ SSHHelper = actionBase.SSHHelper
 Box = require '../models/box'
 app = require '../../app'
 
+partsPath = '/home/action/.parts/autoparts/bin/parts'
+
 module.exports = class PartsSocket extends BaseSocket
   namespace: 'parts'
 
@@ -19,7 +21,6 @@ module.exports = class PartsSocket extends BaseSocket
   destroy: ->
 
   onStart: (boxId, ack) ->
-    @partsPath = '/home/action/.parts/autoparts/bin/parts'
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
       return unless @connection && @connection.isAuthenticated()
       return ack?('failed to fetch box') if err
@@ -66,7 +67,7 @@ module.exports = class PartsSocket extends BaseSocket
       return ack? null, parts
 
   onListAll: (ack) ->
-    @ssh.execCommand "#{@partsPath} search && echo && #{@partsPath} list", (err, stdout, stderr) ->
+    @ssh.execCommand "#{partsPath} search && echo && #{partsPath} list", (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
 
@@ -75,8 +76,9 @@ module.exports = class PartsSocket extends BaseSocket
       parts = []
       installedList = false
       for line in lines
-        # after a blank line is found,
-        # rest is installed packages.
+        # we have a new line to
+        # separate installed packages list
+        # from all packages
         if line == ''
           installedList = true
 
@@ -110,4 +112,4 @@ module.exports = class PartsSocket extends BaseSocket
       return ack? null, stdout
 
   _runPartsCommand: (command, callback)->
-    @ssh.execCommand "#{@partsPath} #{command}", callback
+    @ssh.execCommand "#{partsPath} #{command}", callback

@@ -16,7 +16,7 @@
   , "sockjs"        : "0.3.x"
   , "pty.js"        : "git+ssh://git@github.com:action-io/pty.js.git#8c94801c3daa91678920c77aefd236a4bb4601d7"
   , "sftp.js"       : "git+ssh://git@github.com:action-io/sftp.js.git#36a58f7cc0251a2852d8deedd2520c71539874b0"
-  , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#a3e5308f46f0a70d8bd4bca961c41ae44765584b"
+  , "action-base"   : "git+ssh://git@github.com:action-io/action-base.git#8ebc27e32d7a898d194ab6b011db5faa3bb81e18"
   , "airbrake"      : "git+ssh://git@github.com:action-io/node-airbrake.git#1595e7f7d0873acb5339fe326a85ccf8c1f500bf"
   , "ping"          : "git+ssh://git@github.com:action-io/ping.git#2114b8349576716e3bb492cdb9a8fa1e97426e50"
   }

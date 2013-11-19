@@ -213,7 +213,7 @@ describe 'PartsSocket', ->
 
     it 'calls _runPartsCommand with search command', ->
       socket.emit 'search', 'part', ackSpy
-      expect(socket._runPartsCommand).to.have.been.calledWith "search part"
+      expect(socket._runPartsCommand).to.have.been.calledWith "search 'part'"
 
     context 'when _runPartsCommand succeeds', ->
       context 'when matching packages are found', ->
@@ -270,7 +270,7 @@ describe 'PartsSocket', ->
 
     it 'calls execCommand with combined command', ->
       socket.emit 'listAll', ackSpy
-      expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts search && echo && /home/action/.parts/autoparts/bin/parts list", sinon.match.func
+      expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts search && echo '------installedParts------' && /home/action/.parts/autoparts/bin/parts list", sinon.match.func
 
     context 'when execCommand succeeds', ->
       beforeEach ->
@@ -278,7 +278,7 @@ describe 'PartsSocket', ->
           lua (5.2.2)   Lua: A powerful, fast, lightweight, embeddable scripting language
           freepascal (2.6.2) Free Pascal: An open source Pascal compiler for Pascal and Object Pascal
           meteor (0.6.5.1) A real-time web development platform
-
+          ------installedParts------
           lua (5.2.2)
           freepascal (2.5.4)
 
@@ -318,7 +318,7 @@ describe 'PartsSocket', ->
 
     it 'calls _runPartsCommand with install command', ->
       socket.emit 'install', 'redis', ackSpy
-      expect(socket._runPartsCommand).to.have.been.calledWith "install redis"
+      expect(socket._runPartsCommand).to.have.been.calledWith "install 'redis'"
 
     context 'when _runPartsCommand succeeds', ->
       context 'when the package is installed', ->
@@ -369,7 +369,7 @@ describe 'PartsSocket', ->
 
     it 'calls _runPartsCommand with uninstall command', ->
       socket.emit 'uninstall', 'redis', ackSpy
-      expect(socket._runPartsCommand).to.have.been.calledWith "uninstall redis"
+      expect(socket._runPartsCommand).to.have.been.calledWith "uninstall 'redis'"
 
     context 'when _runPartsCommand succeeds', ->
       context 'when the package is uninstalled', ->

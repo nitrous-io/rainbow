@@ -2,6 +2,7 @@ _ = require 'underscore'
 actionBase = require 'action-base'
 BaseSocket = actionBase.BaseSocket
 SSHHelper = actionBase.SSHHelper
+stringHelper = actionBase.stringHelper
 Box = require '../models/box'
 app = require '../../app'
 
@@ -52,7 +53,7 @@ module.exports = class PartsSocket extends BaseSocket
       return ack? null, parts
 
   onSearch: (term, ack) ->
-    this._runPartsCommand "search #{term}", (err, stdout, stderr) ->
+    this._runPartsCommand "search #{stringHelper.escape term}", (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
       lines = stdout.split "\n"
@@ -67,7 +68,8 @@ module.exports = class PartsSocket extends BaseSocket
       return ack? null, parts
 
   onListAll: (ack) ->
-    @ssh.execCommand "#{partsPath} search && echo && #{partsPath} list", (err, stdout, stderr) ->
+    separator = '------installedParts------'
+    @ssh.execCommand "#{partsPath} search && echo '#{separator}' && #{partsPath} list", (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
 
@@ -76,10 +78,9 @@ module.exports = class PartsSocket extends BaseSocket
       parts = []
       installedList = false
       for line in lines
-        # we have a new line to
-        # separate installed packages list
-        # from all packages
-        if line == ''
+        # installed packages list
+        # starts after the separator.
+        if line == separator
           installedList = true
 
         unless installedList
@@ -100,13 +101,13 @@ module.exports = class PartsSocket extends BaseSocket
       return ack? null, parts
 
   onInstall: (part, ack) ->
-    this._runPartsCommand "install #{part}", (err, stdout, stderr) ->
+    this._runPartsCommand "install #{stringHelper.escape part}", (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
       return ack? null, stdout
 
   onUninstall: (part, ack) ->
-    this._runPartsCommand "uninstall #{part}", (err, stdout, stderr) ->
+    this._runPartsCommand "uninstall #{stringHelper.escape part}", (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
       return ack? null, stdout

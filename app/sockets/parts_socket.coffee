@@ -16,8 +16,11 @@ module.exports = class PartsSocket extends BaseSocket
     this.on 'list',       _.bind(@onList,      this)
     this.on 'listAll',    _.bind(@onListAll,   this)
     this.on 'search',     _.bind(@onSearch,    this)
+    this.on 'status',     _.bind(@onStatus,    this)
     this.on 'install',    _.bind(@onInstall,   this)
     this.on 'uninstall',  _.bind(@onUninstall, this)
+    this.on 'partStart',  _.bind(@onPartStart, this)
+    this.on 'partStop',   _.bind(@onPartStop,  this)
 
   destroy: ->
 
@@ -67,6 +70,25 @@ module.exports = class PartsSocket extends BaseSocket
           parts.push { name: name, version: version, description: description }
       return ack? null, parts
 
+  onStatus: (term, ack) ->
+    if term?.length
+      escapedTerm = stringHelper.escape term
+    else
+      escapedTerm = ''
+
+    this._runPartsCommand "status #{escapedTerm}", (err, stdout, stderr) ->
+      if err
+        return ack? err.toString(), null
+      lines = stdout.split "\n"
+      lines.pop()
+      parts = []
+      for line in lines
+        if match = line.match /^(.*) (.*)$/
+          name = match[1].trim()
+          status = match[2].toLowerCase()
+          parts.push { name: name, status: status }
+      return ack? null, parts
+
   onListAll: (ack) ->
     separator = '------installedParts------'
     @ssh.execCommand "#{partsPath} search && echo '#{separator}' && #{partsPath} list", (err, stdout, stderr) ->
@@ -108,6 +130,18 @@ module.exports = class PartsSocket extends BaseSocket
 
   onUninstall: (part, ack) ->
     this._runPartsCommand "uninstall #{stringHelper.escape part}", (err, stdout, stderr) ->
+      if err
+        return ack? err.toString(), null
+      return ack? null, stdout
+
+  onPartStart: (part, ack) ->
+    this._runPartsCommand "start #{stringHelper.escape part}", (err, stdout, stderr) ->
+      if err
+        return ack? err.toString(), null
+      return ack? null, stdout
+
+  onPartStop: (part, ack) ->
+    this._runPartsCommand "stop #{stringHelper.escape part}", (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
       return ack? null, stdout

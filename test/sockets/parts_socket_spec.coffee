@@ -240,7 +240,7 @@ describe 'PartsSocket', ->
           socket._runPartsCommand.callsArgWith 1, new Error('Command failed: parts: no package found for "hello"'), null
 
         it 'returns an error', (done) ->
-          socket.emit 'search', 'part', (err, output) ->
+          socket.emit 'search', 'hello', (err, output) ->
             expect(err).not.to.be.null
             expect(output).to.be.null
             done()
@@ -251,6 +251,66 @@ describe 'PartsSocket', ->
 
         it 'returns an error', (done) ->
           socket.emit 'search', 'part', (err, output) ->
+            expect(err).not.to.be.null
+            expect(output).to.be.null
+            done()
+
+  describe 'event: status', ->
+    ackSpy = null
+
+    beforeEach ->
+      cbSpy = sinon.spy()
+      sinon.stub socket, '_runPartsCommand'
+
+    afterEach ->
+      socket._runPartsCommand.restore()
+
+    context 'when a term is given', ->
+      it 'calls _runPartsCommand with status and given term', ->
+        socket.emit 'status', 'hello', ackSpy
+        expect(socket._runPartsCommand).to.have.been.calledWith "status 'hello'"
+
+    context 'when a term is not given', ->
+      it 'calls _runPartsCommand only with status', ->
+        socket.emit 'status', null, ackSpy
+        expect(socket._runPartsCommand).to.have.been.calledWith "status "
+
+    context 'when _runPartsCommand succeeds', ->
+      context 'when matching packages are found', ->
+        beforeEach ->
+          stdout = '''
+            memcached RUNNING
+            mongodb   STOPPED
+
+          '''
+          socket._runPartsCommand.callsArgWith 1, null, stdout
+
+        it 'returns an array of matching packages', (done) ->
+          socket.emit 'status', '', (err, output) ->
+            expect(err).to.be.null
+            expect(output).to.deep.equal [
+              { name: 'memcached', status: 'running' }
+              { name: 'mongodb', status: 'stopped' }
+            ]
+            done()
+
+    context 'when _runPartsCommand fails', ->
+      context 'with no packages found', ->
+        beforeEach ->
+          socket._runPartsCommand.callsArgWith 1, new Error('Command failed: parts: no package found for "hello"'), null
+
+        it 'returns an error', (done) ->
+          socket.emit 'status', 'hello', (err, output) ->
+            expect(err).not.to.be.null
+            expect(output).to.be.null
+            done()
+
+      context 'some other error', ->
+        beforeEach ->
+          socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
+
+        it 'returns an error', (done) ->
+          socket.emit 'status', 'hello', (err, output) ->
             expect(err).not.to.be.null
             expect(output).to.be.null
             done()
@@ -397,6 +457,97 @@ describe 'PartsSocket', ->
 
         it 'returns an error', (done) ->
           socket.emit 'uninstall', 'redis', (err, output) ->
+            expect(err).not.to.be.null
+            expect(output).to.be.null
+            done()
+
+  describe 'event: partStart', ->
+    ackSpy = null
+
+    beforeEach ->
+      cbSpy = sinon.spy()
+      sinon.stub socket, '_runPartsCommand'
+
+    afterEach ->
+      socket._runPartsCommand.restore()
+
+    it 'calls _runPartsCommand with start command', ->
+      socket.emit 'partStart', 'mongodb', ackSpy
+      expect(socket._runPartsCommand).to.have.been.calledWith "start 'mongodb'"
+
+    context 'when _runPartsCommand succeeds', ->
+      context 'when the package is started', ->
+        stdout = null
+
+        beforeEach ->
+          stdout = '''
+          => Starting mongodb
+          about to fork child process, waiting until server is ready for connections
+          forked process: 4458
+          all output going to: /home/action/.parts/var/log/mongodb/mongod.log
+          child process started successfully, parent exiting
+          => Started: mongodb
+
+          '''
+          socket._runPartsCommand.callsArgWith 1, null, stdout
+
+        it 'returns the stdout', (done) ->
+          socket.emit 'partStart', 'mongodb', (err, output) ->
+            expect(err).to.be.null
+            expect(output).to.equal stdout
+            done()
+
+    context 'when _runPartsCommand fails', ->
+      context 'some error', ->
+        beforeEach ->
+          socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
+
+        it 'returns an error', (done) ->
+          socket.emit 'partStart', 'mongodb', (err, output) ->
+            expect(err).not.to.be.null
+            expect(output).to.be.null
+            done()
+
+  describe 'event: partStop', ->
+    ackSpy = null
+
+    beforeEach ->
+      cbSpy = sinon.spy()
+      sinon.stub socket, '_runPartsCommand'
+
+    afterEach ->
+      socket._runPartsCommand.restore()
+
+    it 'calls _runPartsCommand with stop command', ->
+      socket.emit 'partStop', 'mongodb', ackSpy
+      expect(socket._runPartsCommand).to.have.been.calledWith "stop 'mongodb'"
+
+    context 'when _runPartsCommand succeeds', ->
+      context 'when the package is stopped', ->
+        stdout = null
+
+        beforeEach ->
+          stdout = '''
+          => Stopping mongodb
+          killing process with pid: xxxx
+          => Stopped: mongodb
+
+          '''
+          socket._runPartsCommand.callsArgWith 1, null, stdout
+
+        it 'returns the stdout', (done) ->
+          socket.emit 'partStop', 'mongodb', (err, output) ->
+            expect(err).to.be.null
+            expect(output).to.equal stdout
+            done()
+
+    context 'when _runPartsCommand fails', ->
+      context 'some error', ->
+        beforeEach ->
+          socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
+
+        it 'returns an error', (done) ->
+          socket.emit 'partStop', 'mongodb', (err, output) ->
             expect(err).not.to.be.null
             expect(output).to.be.null
             done()

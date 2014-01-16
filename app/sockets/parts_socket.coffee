@@ -147,4 +147,5 @@ module.exports = class PartsSocket extends BaseSocket
       return ack? null, stdout
 
   _runPartsCommand: (command, callback)->
-    @ssh.execCommand "#{partsPath} #{command}", callback
+    # increase the timeout for SSH exec commands.
+    @ssh.execCommand "#{partsPath} #{command}", { timeout: 60000 }, callback

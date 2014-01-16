@@ -142,9 +142,9 @@ describe 'PartsSocket', ->
     afterEach ->
       socket.ssh = null
 
-    it 'passes the given command and callback to execCommand', ->
+    it 'passes the given command and callback along with a timeout to execCommand', ->
       socket._runPartsCommand 'list', cbSpy
-      expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts list", cbSpy
+      expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts list", { timeout: 60000 }, cbSpy
 
   describe 'event: list', ->
     ackSpy = null

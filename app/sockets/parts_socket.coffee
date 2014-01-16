@@ -8,6 +8,30 @@ app = require '../../app'
 
 partsPath = '/home/action/.parts/autoparts/bin/parts'
 
+listItemRegex = ///
+  ^             # start of line
+  (.*)          # part name (which might contain trailing spaces)
+  \(([\S]*)\)   # version inside brackets
+  $             # end of line
+///
+
+searchItemRegex = ///
+  ^             # start of line
+  (.*)          # part name (which might contain trailing spaces)
+  \(([\S]*)\)   # version inside brackets
+  (.*)          # description (which might contain leading spaces)
+  $             # end of line
+///
+
+
+statusItemRegex = ///
+  ^             # start of line
+  ([\S]*)       # partname (which is a single word without spaces)
+  \s*           # followed by some spaces
+  ([\S]*)       # status (which is a single word without spaces)
+  $             # end of line
+///
+
 module.exports = class PartsSocket extends BaseSocket
   namespace: 'parts'
 
@@ -49,7 +73,7 @@ module.exports = class PartsSocket extends BaseSocket
       lines.pop()
       parts = []
       for line in lines
-        if match = line.match /^(.*)\(([\S]*)\)$/
+        if match = line.match listItemRegex
           name = match[1].trim()
           version = match[2]
           parts.push { name: name, version: version }
@@ -63,7 +87,7 @@ module.exports = class PartsSocket extends BaseSocket
       lines.pop()
       parts = []
       for line in lines
-        if match = line.match /^(.*)\(([\S]*)\)(.*)$/
+        if match = line.match searchItemRegex
           name = match[1].trim()
           version = match[2]
           description = match[3].trim()
@@ -83,7 +107,7 @@ module.exports = class PartsSocket extends BaseSocket
       lines.pop()
       parts = []
       for line in lines
-        if match = line.match /^(.*) (.*)$/
+        if match = line.match statusItemRegex
           name = match[1].trim()
           status = match[2].toLowerCase()
           parts.push { name: name, status: status }
@@ -106,13 +130,13 @@ module.exports = class PartsSocket extends BaseSocket
           installedList = true
 
         unless installedList
-          if match = line.match /^(.*)\(([\S]*)\)(.*)$/
+          if match = line.match searchItemRegex
             name = match[1].trim()
             version = match[2]
             description = match[3].trim()
             parts.push { name: name, version: version, description: description, installed: false, installed_version: null }
         else
-          if match = line.match /^(.*)\(([\S]*)\)$/
+          if match = line.match listItemRegex
             name = match[1].trim()
             version = match[2]
             part = _.find parts, (p) ->

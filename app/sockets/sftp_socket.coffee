@@ -30,8 +30,8 @@ module.exports = class SFTPSocket extends BaseSocket
     @sftp = null
 
   onStart: (boxId, ack) ->
+    return unless @connection && @connection.isAuthenticated()
     Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
-      return unless @connection && @connection.isAuthenticated()
       return ack?('failed to fetch box') if err
       return ack?('box not found') unless box
       box.isAccessibleByUserId @connection.userId, (err, accessible) =>

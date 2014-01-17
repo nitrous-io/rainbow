@@ -43,7 +43,13 @@ module.exports = class SSHSocket extends BaseSocket
     @pty?.write data.toString() if @sshStarted
 
   onResize: (width, height) ->
-    @pty?.resize width, height
+    try
+      @pty?.resize width, height
+    catch err
+      console.log err
+      console.log err.message
+      console.log err.stack
+      @destroy()
 
   onKill: ->
     this.destroy()

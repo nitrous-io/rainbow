@@ -279,8 +279,8 @@ describe 'PartsSocket', ->
       context 'when matching packages are found', ->
         beforeEach ->
           stdout = '''
-            memcached RUNNING
-            mongodb   STOPPED
+            memcached   RUNNING
+            mongodb     STOPPED
 
           '''
           socket._runPartsCommand.callsArgWith 1, null, stdout
@@ -335,9 +335,9 @@ describe 'PartsSocket', ->
     context 'when execCommand succeeds', ->
       beforeEach ->
         stdout = '''
-          lua (5.2.2)   Lua: A powerful, fast, lightweight, embeddable scripting language
+          lua (5.2.2)        Lua: A powerful, fast, lightweight, embeddable scripting language
           freepascal (2.6.2) Free Pascal: An open source Pascal compiler for Pascal and Object Pascal
-          meteor (0.6.5.1) A real-time web development platform
+          meteor (0.6.5.1)   A real-time web development platform
           ------installedParts------
           lua (5.2.2)
           freepascal (2.5.4)

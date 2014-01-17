@@ -10,23 +10,26 @@ partsPath = '/home/action/.parts/autoparts/bin/parts'
 
 listItemRegex = ///
   ^             # start of line
-  (.*)          # part name (which might contain trailing spaces)
-  \(([\S]*)\)   # version inside brackets
+  (.+)          # part name
+  \s+           # followed by some spaces
+  \(([^(]+)\)   # version inside brackets
   $             # end of line
 ///
 
 searchItemRegex = ///
   ^             # start of line
-  (.*)          # part name (which might contain trailing spaces)
-  \(([\S]*)\)   # version inside brackets
-  (.*)          # description (which might contain leading spaces)
+  (.+)          # part name
+  \s+           # followed by some spaces
+  \(([^(]+)\)   # version inside brackets
+  \s+           # followed by some spaces
+  (.+)          # description
   $             # end of line
 ///
 
 
 statusItemRegex = ///
   ^             # start of line
-  ([\S]*)       # partname (which is a single word without spaces)
+  ([\S]*)       # part name
   \s*           # followed by some spaces
   ([\S]*)       # status (which is a single word without spaces)
   $             # end of line
@@ -74,7 +77,7 @@ module.exports = class PartsSocket extends BaseSocket
       parts = []
       for line in lines
         if match = line.match listItemRegex
-          name = match[1].trim()
+          name = match[1]
           version = match[2]
           parts.push { name: name, version: version }
       return ack? null, parts
@@ -88,9 +91,9 @@ module.exports = class PartsSocket extends BaseSocket
       parts = []
       for line in lines
         if match = line.match searchItemRegex
-          name = match[1].trim()
+          name = match[1]
           version = match[2]
-          description = match[3].trim()
+          description = match[3]
           parts.push { name: name, version: version, description: description }
       return ack? null, parts
 
@@ -108,7 +111,7 @@ module.exports = class PartsSocket extends BaseSocket
       parts = []
       for line in lines
         if match = line.match statusItemRegex
-          name = match[1].trim()
+          name = match[1]
           status = match[2].toLowerCase()
           parts.push { name: name, status: status }
       return ack? null, parts
@@ -131,13 +134,13 @@ module.exports = class PartsSocket extends BaseSocket
 
         unless installedList
           if match = line.match searchItemRegex
-            name = match[1].trim()
+            name = match[1]
             version = match[2]
-            description = match[3].trim()
+            description = match[3]
             parts.push { name: name, version: version, description: description, installed: false, installed_version: null }
         else
           if match = line.match listItemRegex
-            name = match[1].trim()
+            name = match[1]
             version = match[2]
             part = _.find parts, (p) ->
               (p.name == name)

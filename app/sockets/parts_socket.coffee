@@ -52,6 +52,8 @@ module.exports = class PartsSocket extends BaseSocket
     this.on 'partStop',   _.bind(@onPartsCommand, this, 'stop')
 
   destroy: ->
+    @ssh = undefined
+    @box = undefined
 
   onStart: (boxId, ack) ->
     return unless @connection && @connection.isAuthenticated()

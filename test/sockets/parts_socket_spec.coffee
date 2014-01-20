@@ -551,3 +551,9 @@ describe 'PartsSocket', ->
             expect(err).not.to.be.null
             expect(output).to.be.null
             done()
+
+  describe '#destroy', ->
+    it 'deletes @ssh and @box', ->
+      socket.destroy()
+      expect(socket.ssh).to.be.undefined
+      expect(socket.box).to.be.undefined

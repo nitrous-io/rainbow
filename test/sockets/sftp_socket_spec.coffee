@@ -1,10 +1,10 @@
 actionBase = require 'action-base'
-BaseSocket = actionBase.BaseSocket
+RainbowSocket = require '../../app/sockets/rainbow_socket'
 SocketConnection = actionBase.SocketConnection
 SSHHelper = actionBase.SSHHelper
 SFTPSocket = require '../../app/sockets/sftp_socket'
-KeyPair = require '../../app/models/key_pair'
 Box = require '../../app/models/box'
+KeyPair = require '../../app/models/key_pair'
 app = require '../../app'
 SFTP = require 'sftp.js'
 fs = require 'fs'
@@ -18,8 +18,8 @@ describe 'SFTPSocket', ->
     connection.userId = 1337
     socket = new SFTPSocket connection
 
-  it 'is a subclass of BaseSocket', ->
-    expect(socket).to.be.an.instanceof BaseSocket
+  it 'is a subclass of RainbowSocket', ->
+    expect(socket).to.be.an.instanceof RainbowSocket
 
   it 'has "sftp" as namespace', ->
     expect(socket.namespace).to.equal 'sftp'
@@ -29,133 +29,67 @@ describe 'SFTPSocket', ->
 
     beforeEach ->
       ackSpy = sinon.spy()
-      sinon.stub Box, 'findById'
+      sinon.stub socket, 'fetchBoxAndKeyPair'
 
     afterEach ->
-      Box.findById.restore()
+      socket.fetchBoxAndKeyPair.restore()
 
     doAction = ->
       socket.emit 'start', 111, ackSpy
 
-    it 'tries to find a box with a given id', ->
+    it 'calls #fetchBoxAndKeyPair with the given box id', ->
       doAction()
-      expect(Box.findById).to.have.been.calledWith 111, ['owner_id', 'host', 'port']
+      expect(socket.fetchBoxAndKeyPair).to.have.been.calledWith 111, sinon.match.func
 
-    context 'when finding a box with a given id fails with error', ->
+    context 'when #fetchBoxAndKeyPair returns an error', ->
       beforeEach ->
-        error = new Error 'some error'
-        Box.findById.callsArgWith 2, error
         doAction()
+        socket.fetchBoxAndKeyPair.yield 'some error'
 
-      it 'calls ack callback with the error message', ->
-        expect(ackSpy).to.have.been.calledWith 'failed to fetch box'
+      it 'calls ack callback with the given error message', ->
+        expect(ackSpy).to.have.been.calledWith 'some error'
 
-    context 'when a box with a given id is not found', ->
-      beforeEach ->
-        Box.findById.callsArgWith 2, null, null
-        doAction()
-
-      it 'calls ack callback with the error message', ->
-        expect(ackSpy).to.have.been.calledWith 'box not found'
-
-    context 'when the connection is already destroyed', ->
-      beforeEach ->
-        socket.connection = undefined
-        doAction()
-
-        it 'returns without calling ack callback', ->
-          expect(ackSpy).not.to.have.been.called()
-
-    context 'when box is found', ->
+    context 'when #fetchBoxAndKeyPair returns box and key pair', ->
       box = null
 
       beforeEach ->
         box = new Box id: 123, host: 'foobar.action.io', port: 2234
-        sinon.stub box, 'isAccessibleByUserId'
-        Box.findById.callsArgWith 2, null, box
+        keyPair = new KeyPair
+        keyPair.__defineGetter__ 'private_key', -> 'some private key'
+        sinon.stub SFTP.prototype, 'connect'
+        doAction()
+        socket.fetchBoxAndKeyPair.yield null, box, keyPair
 
-      context 'when the box does not belong to this user', ->
+      afterEach ->
+        SFTP::connect.restore()
+
+      it 'stores the box in an ivar', ->
+        expect(socket.box).to.equal box
+
+      it 'stores the private key in an ivar', ->
+        expect(socket.privateKey).to.equal 'some private key'
+
+      it "instantiates an SFTP object with the box's host, port and private key", ->
+        sftp = socket.sftp
+        expect(sftp).to.be.an.instanceOf SFTP
+        expect(sftp.host).to.equal 'foobar.action.io'
+        expect(sftp.port).to.equal 2234
+        expect(sftp.key).to.equal 'some private key'
+
+      context 'when sftp connection is made', ->
         beforeEach ->
-          box.isAccessibleByUserId.withArgs(1337, sinon.match.func).yields null, false
-          doAction()
+          SFTP::connect.yield null
 
-        it 'calls ack callback with the error message', ->
-          expect(ackSpy).to.have.been.calledWith "box doesn't belong to user"
+        it 'calls ack callback with no error', ->
+          expect(ackSpy).to.have.been.calledWith undefined
 
-      context 'when an error occurs while checking whether the box belongs to this user', ->
-        error = new Error
-
-        beforeEach ->
-          box.isAccessibleByUserId.withArgs(1337, sinon.match.func).yields error
-          doAction()
-
-        it 'calls ack callback with an error message', ->
-          expect(ackSpy).to.have.been.calledWith 'unable to verify access permission'
-
-      context 'when box belongs to this user', ->
-        beforeEach ->
-          box.isAccessibleByUserId.withArgs(1337, sinon.match.func).yields null, true
-
-        context 'when a keypair for the box is not found', ->
+        context 'when it fails to connect to sftp', ->
           beforeEach ->
-            sinon.stub box, 'findKeyPair'
-            box.findKeyPair.yields null, null
-            doAction()
+            error = new Error 'some sftp connection error'
+            SFTP::connect.yield error
 
-          it 'calls ack callback with the error message', ->
-            expect(ackSpy).to.have.been.calledWith 'key pair not found'
-
-        context 'when there was an error finding the keypair', ->
-          beforeEach ->
-            error = new Error 'some error'
-            sinon.stub box, 'findKeyPair'
-            box.findKeyPair.yields error, null
-            doAction()
-
-          it 'calls ack callback with the error message', ->
-            expect(ackSpy).to.have.been.calledWith 'failed to fetch key pair'
-
-        context 'when a keypair for the box is found', ->
-          keyPair = null
-
-          beforeEach ->
-            keyPair = new KeyPair
-            keyPair.__defineGetter__ 'private_key', -> 'some private key'
-            sinon.stub box, 'findKeyPair'
-            box.findKeyPair.yields null, keyPair
-
-          it "instantiates an SFTP object with the box's host, port and private key", ->
-            doAction()
-            sftp = socket.sftp
-            expect(sftp).to.be.an.instanceOf SFTP
-            expect(sftp.host).to.equal 'foobar.action.io'
-            expect(sftp.port).to.equal 2234
-            expect(sftp.key).to.equal 'some private key'
-
-          context 'when sftp connection is made', ->
-            beforeEach ->
-              sinon.stub SFTP.prototype, 'connect'
-              SFTP::connect.yields null
-              doAction()
-
-            afterEach ->
-              SFTP::connect.restore()
-
-            it 'calls ack callback with no error', ->
-              expect(ackSpy).to.have.been.calledWith undefined
-
-          context 'when it fails to connect to sftp', ->
-            beforeEach ->
-              sinon.stub SFTP.prototype, 'connect'
-              error = new Error 'some sftp connection error'
-              SFTP::connect.yields error
-              doAction()
-
-            afterEach ->
-              SFTP::connect.restore()
-
-            it 'calls ack callback with error', ->
-              expect(ackSpy).to.have.been.calledWith 'failed to create sftp connection'
+          it 'calls ack callback with error', ->
+            expect(ackSpy).to.have.been.calledWith 'failed to create sftp connection'
 
   describe 'event: list', ->
     ackSpy = null
@@ -866,3 +800,6 @@ describe 'SFTPSocket', ->
       expect(mockSFTP.destroy).to.have.been.called
       expect(socket.sftp).not.to.exist
 
+    it 'deletes @box and @privateKey', ->
+      expect(socket.box).not.to.exist
+      expect(socket.privateKey).not.to.exist

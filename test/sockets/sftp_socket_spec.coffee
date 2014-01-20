@@ -800,3 +800,6 @@ describe 'SFTPSocket', ->
       expect(mockSFTP.destroy).to.have.been.called
       expect(socket.sftp).not.to.exist
 
+    it 'deletes @box and @privateKey', ->
+      expect(socket.box).not.to.exist
+      expect(socket.privateKey).not.to.exist

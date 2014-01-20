@@ -1,14 +1,13 @@
 _ = require 'underscore'
 actionBase = require 'action-base'
-BaseSocket = actionBase.BaseSocket
+RainbowSocket = require './rainbow_socket'
 SSHHelper = actionBase.SSHHelper
-Box = require '../models/box'
 SFTP = require 'sftp.js'
 fs = require 'fs'
 Path = require 'path'
 app = require '../../app'
 
-module.exports = class SFTPSocket extends BaseSocket
+module.exports = class SFTPSocket extends RainbowSocket
   namespace: 'sftp'
   sizeLimit: 2 * 1024 * 1024 # 2 megabytes
 
@@ -28,24 +27,18 @@ module.exports = class SFTPSocket extends BaseSocket
   destroy: ->
     @sftp?.destroy()
     @sftp = null
+    @box = null
+    @privateKey = null
 
   onStart: (boxId, ack) ->
-    return unless @connection && @connection.isAuthenticated()
-    Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
-      return ack?('failed to fetch box') if err
-      return ack?('box not found') unless box
-      box.isAccessibleByUserId @connection.userId, (err, accessible) =>
-        return ack?('unable to verify access permission') if err
-        return ack?("box doesn't belong to user") unless accessible
-        @box = box
-        @box.findKeyPair (err, keyPair) =>
-          return ack?('failed to fetch key pair') if err
-          return ack?('key pair not found') unless keyPair
-          @privateKey = keyPair.private_key
-          @sftp = new SFTP host: @box.host, port: @box.port, user: 'action', key: @privateKey
-          @sftp.connect (err) =>
-            ack?('failed to create sftp connection') if err
-            ack?()
+    this.fetchBoxAndKeyPair boxId, (err, box, keyPair) =>
+      return ack?(err) if err
+      @box = box
+      @privateKey = keyPair.private_key
+      @sftp = new SFTP host: @box.host, port: @box.port, user: 'action', key: @privateKey
+      @sftp.connect (err) =>
+        ack?('failed to create sftp connection') if err
+        ack?()
 
   onList: (path, ack) ->
     @sftp?.ls path, (err, fileListing) =>

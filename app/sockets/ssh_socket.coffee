@@ -2,12 +2,11 @@ process.env.TERM = 'xterm-256color'
 
 _ = require 'underscore'
 actionBase = require 'action-base'
-BaseSocket = actionBase.BaseSocket
+RainbowSocket = require './rainbow_socket'
 SSHHelper = actionBase.SSHHelper
-Box = require '../models/box'
 pty = require 'pty.js'
 
-module.exports = class SSHSocket extends BaseSocket
+module.exports = class SSHSocket extends RainbowSocket
   namespace: 'ssh'
 
   initialize: ->
@@ -22,22 +21,15 @@ module.exports = class SSHSocket extends BaseSocket
     @pty?.removeAllListeners()
     @pty?.destroy()
     @pty = undefined
-    @box = undefined
 
   onStart: (boxId, ack) ->
     @sshStarted = false
-    return unless @connection && @connection.isAuthenticated()
-    Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
-      return ack?('failed to fetch box') if err
-      return ack?('box not found') unless box
-      box.isAccessibleByUserId @connection.userId, (err, accessible) =>
-        return ack?('unable to verify access permission') if err
-        return ack?("box doesn't belong to user") unless accessible
-        return ack?('pty already created') if @pty
-        @box = box
-        this.connectToSSH (err) =>
-          return ack?('failed to create ssh connection') if err
-          ack?()
+    return ack?('pty already created') if @pty
+    this.fetchBoxAndKeyPair boxId, (err, box, keyPair) =>
+      return ack?(err) if err
+      this.connectToSSH box, keyPair, (error) =>
+        return ack?('failed to create ssh connection') if error
+        ack?()
 
   onData: (data) ->
     @pty?.write data.toString() if @sshStarted
@@ -54,34 +46,24 @@ module.exports = class SSHSocket extends BaseSocket
   onKill: ->
     this.destroy()
 
-  connectToSSH: (callback) ->
-    @box?.findKeyPair (err, keyPair) =>
-      return unless @box
-
+  connectToSSH: (box, keyPair, callback) ->
+    sshHelper = new SSHHelper 'action', box.host, box.port, keyPair.private_key
+    sshHelper.writeKeyFile (err, sshArgs, deleteKeyFile) =>
       if err
         callback err
         return
-      unless keyPair
-        callback 'key pair not found'
-        return
-
-      sshHelper = new SSHHelper 'action', @box.host, @box.port, keyPair.private_key
-      sshHelper.writeKeyFile (err, sshArgs, deleteKeyFile) =>
-        if err
+      try
+        @pty = pty.spawn '/usr/bin/ssh', sshArgs
+      catch err
+        deleteKeyFile ->
           callback err
-          return
-        try
-          @pty = pty.spawn '/usr/bin/ssh', sshArgs
-        catch err
-          deleteKeyFile ->
-            callback err
-          return
-        @pty.once 'data', =>
-          deleteKeyFile()
-          @sshStarted = true
-        @pty.on 'data',  _.bind(@onPTYData, this)
-        @pty.on 'close', _.bind(@onPTYClose, this)
-        callback null
+        return
+      @pty.once 'data', =>
+        deleteKeyFile()
+        @sshStarted = true
+      @pty.on 'data',  _.bind(@onPTYData, this)
+      @pty.on 'close', _.bind(@onPTYClose, this)
+      callback null
 
   onPTYData: (data) ->
     this.send 'p', data

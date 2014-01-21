@@ -1,10 +1,9 @@
 actionBase = require 'action-base'
-BaseSocket = actionBase.BaseSocket
+RainbowSocket = require '../../app/sockets/rainbow_socket'
 SocketConnection = actionBase.SocketConnection
 SSHHelper = actionBase.SSHHelper
 PartsSocket = require '../../app/sockets/parts_socket'
 KeyPair = require '../../app/models/key_pair'
-Box = require '../../app/models/box'
 app = require '../../app'
 
 describe 'PartsSocket', ->
@@ -16,8 +15,8 @@ describe 'PartsSocket', ->
     connection.userId = 1337
     socket = new PartsSocket connection
 
-  it 'is a subclass of BaseSocket', ->
-    expect(socket).to.be.an.instanceof BaseSocket
+  it 'is a subclass of RainbowSocket', ->
+    expect(socket).to.be.an.instanceof RainbowSocket
 
   it 'has "parts" as namespace', ->
     expect(socket.namespace).to.equal 'parts'
@@ -27,107 +26,42 @@ describe 'PartsSocket', ->
 
     beforeEach ->
       ackSpy = sinon.spy()
-      sinon.stub Box, 'findById'
+      sinon.stub socket, 'fetchBoxAndKeyPair'
 
     afterEach ->
-      Box.findById.restore()
+      socket.fetchBoxAndKeyPair.restore()
 
     doAction = ->
       socket.emit 'start', 111, ackSpy
 
-    it 'tries to find a box with a given id', ->
+    it 'calls #fetchBoxAndKeyPair with the given box id', ->
       doAction()
-      expect(Box.findById).to.have.been.calledWith 111, ['owner_id', 'host', 'port']
+      expect(socket.fetchBoxAndKeyPair).to.have.been.calledWith 111, sinon.match.func
 
-    context 'when finding a box with a given id fails with error', ->
+    context 'when #fetchBoxAndKeyPair returns an error', ->
       beforeEach ->
-        error = new Error 'some error'
-        Box.findById.callsArgWith 2, error
         doAction()
+        socket.fetchBoxAndKeyPair.yield 'some error'
 
-      it 'calls ack callback with the error message', ->
-        expect(ackSpy).to.have.been.calledWith 'failed to fetch box'
+      it 'calls ack callback with the given error message', ->
+        expect(ackSpy).to.have.been.calledWith 'some error'
 
-    context 'when a box with a given id is not found', ->
+    context 'when #fetchBoxAndKeyPair returns box and key pair', ->
       beforeEach ->
-        Box.findById.callsArgWith 2, null, null
+        box = { host: 'foobar.action.io', port: 1234 }
+        keyPair = new KeyPair
+        keyPair.__defineGetter__ 'private_key', -> 'some private key'
         doAction()
+        socket.fetchBoxAndKeyPair.yield null, box, keyPair
 
-      it 'calls ack callback with the error message', ->
-        expect(ackSpy).to.have.been.calledWith 'box not found'
+      it 'instantiates a ssh helper and stores it in an ivar', ->
+        expect(socket.ssh).to.be.an.instanceof SSHHelper
+        expect(socket.ssh.host).to.equal 'foobar.action.io'
+        expect(socket.ssh.port).to.equal 1234
+        expect(socket.ssh.key).to.equal 'some private key'
 
-    context 'when the connection is already destroyed', ->
-      beforeEach ->
-        socket.connection = undefined
-        doAction()
-
-        it 'returns without calling ack callback', ->
-          expect(ackSpy).not.to.have.been.called()
-
-    context 'when box is found', ->
-      box = null
-
-      beforeEach ->
-        box = new Box id: 123, host: 'foobar.action.io', port: 2234
-        sinon.stub box, 'isAccessibleByUserId'
-        Box.findById.callsArgWith 2, null, box
-
-      context 'when the box does not belong to this user', ->
-        beforeEach ->
-          box.isAccessibleByUserId.withArgs(1337, sinon.match.func).yields null, false
-          doAction()
-
-        it 'calls ack callback with the error message', ->
-          expect(ackSpy).to.have.been.calledWith "box doesn't belong to user"
-
-      context 'when an error occurs while checking whether the box belongs to this user', ->
-        error = new Error
-
-        beforeEach ->
-          box.isAccessibleByUserId.withArgs(1337, sinon.match.func).yields error
-          doAction()
-
-        it 'calls ack callback with an error message', ->
-          expect(ackSpy).to.have.been.calledWith 'unable to verify access permission'
-
-      context 'when box belongs to this user', ->
-        beforeEach ->
-          box.isAccessibleByUserId.withArgs(1337, sinon.match.func).yields null, true
-
-        context 'when a keypair for the box is not found', ->
-          beforeEach ->
-            sinon.stub box, 'findKeyPair'
-            box.findKeyPair.yields null, null
-            doAction()
-
-          it 'calls ack callback with the error message', ->
-            expect(ackSpy).to.have.been.calledWith 'key pair not found'
-
-        context 'when there was an error finding the keypair', ->
-          beforeEach ->
-            error = new Error 'some error'
-            sinon.stub box, 'findKeyPair'
-            box.findKeyPair.yields error, null
-            doAction()
-
-          it 'calls ack callback with the error message', ->
-            expect(ackSpy).to.have.been.calledWith 'failed to fetch key pair'
-
-        context 'when a keypair for the box is found', ->
-          keyPair = null
-
-          beforeEach ->
-            keyPair = new KeyPair
-            keyPair.__defineGetter__ 'private_key', -> 'some private key'
-            sinon.stub box, 'findKeyPair'
-            box.findKeyPair.yields null, keyPair
-            doAction()
-
-          it 'stores the ssh helper in an ivar', ->
-            expect(socket.ssh).to.be.an.instanceof SSHHelper
-
-          it 'calls ack callback without an error message', ->
-            expect(ackSpy).to.have.been.called
+      it 'calls ack callback without an error message', ->
+        expect(ackSpy).to.have.been.called
 
   describe '#_runPartsCommand', ->
     cbSpy = null
@@ -135,7 +69,6 @@ describe 'PartsSocket', ->
 
     beforeEach ->
       cbSpy = sinon.spy()
-      socket.box = new Box id: 123, host: 'foobar.actionbox.io', port: 2234
       execCommandStub = sinon.stub()
       socket.ssh = { execCommand: execCommandStub }
 
@@ -551,3 +484,9 @@ describe 'PartsSocket', ->
             expect(err).not.to.be.null
             expect(output).to.be.null
             done()
+
+  describe '#destroy', ->
+    it 'deletes @ssh and @box', ->
+      socket.destroy()
+      expect(socket.ssh).to.be.undefined
+      expect(socket.box).to.be.undefined

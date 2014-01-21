@@ -1,9 +1,8 @@
 _ = require 'underscore'
 actionBase = require 'action-base'
-BaseSocket = actionBase.BaseSocket
+RainbowSocket = require './rainbow_socket'
 SSHHelper = actionBase.SSHHelper
 stringHelper = actionBase.stringHelper
-Box = require '../models/box'
 app = require '../../app'
 
 partsPath = '/home/action/.parts/autoparts/bin/parts'
@@ -35,7 +34,7 @@ statusItemRegex = ///
   $             # end of line
 ///
 
-module.exports = class PartsSocket extends BaseSocket
+module.exports = class PartsSocket extends RainbowSocket
   namespace: 'parts'
 
   initialize: ->
@@ -44,27 +43,21 @@ module.exports = class PartsSocket extends BaseSocket
     this.on 'listAll',    _.bind(@onListAll,   this)
     this.on 'search',     _.bind(@onSearch,    this)
     this.on 'status',     _.bind(@onStatus,    this)
-    this.on 'install',    _.bind(@onInstall,   this)
-    this.on 'uninstall',  _.bind(@onUninstall, this)
-    this.on 'partStart',  _.bind(@onPartStart, this)
-    this.on 'partStop',   _.bind(@onPartStop,  this)
+
+    # following commands can be handled with a common handler.
+    this.on 'install',    _.bind(@onPartsCommand, this, 'install')
+    this.on 'uninstall',  _.bind(@onPartsCommand, this, 'uninstall')
+    this.on 'partStart',  _.bind(@onPartsCommand, this, 'start')
+    this.on 'partStop',   _.bind(@onPartsCommand, this, 'stop')
 
   destroy: ->
+    @ssh = undefined
 
   onStart: (boxId, ack) ->
-    return unless @connection && @connection.isAuthenticated()
-    Box.findById boxId, ['owner_id', 'host', 'port'], (err, box) =>
-      return ack?('failed to fetch box') if err
-      return ack?('box not found') unless box
-      box.isAccessibleByUserId @connection.userId, (err, accessible) =>
-        return ack?('unable to verify access permission') if err
-        return ack?("box doesn't belong to user") unless accessible
-        @box = box
-        @box.findKeyPair (err, keyPair) =>
-          return ack?('failed to fetch key pair') if err
-          return ack?('key pair not found') unless keyPair
-          @ssh = new SSHHelper 'action', @box.host, @box.port, keyPair.private_key
-          ack?()
+    this.fetchBoxAndKeyPair boxId, (err, box, keyPair) =>
+      return ack?(err) if err
+      @ssh = new SSHHelper 'action', box.host, box.port, keyPair.private_key
+      ack?()
 
   onList: (ack) ->
     this._runPartsCommand "list", (err, stdout, stderr) ->
@@ -149,26 +142,8 @@ module.exports = class PartsSocket extends BaseSocket
 
       return ack? null, parts
 
-  onInstall: (part, ack) ->
-    this._runPartsCommand "install #{stringHelper.escape part}", (err, stdout, stderr) ->
-      if err
-        return ack? err.toString(), null
-      return ack? null, stdout
-
-  onUninstall: (part, ack) ->
-    this._runPartsCommand "uninstall #{stringHelper.escape part}", (err, stdout, stderr) ->
-      if err
-        return ack? err.toString(), null
-      return ack? null, stdout
-
-  onPartStart: (part, ack) ->
-    this._runPartsCommand "start #{stringHelper.escape part}", (err, stdout, stderr) ->
-      if err
-        return ack? err.toString(), null
-      return ack? null, stdout
-
-  onPartStop: (part, ack) ->
-    this._runPartsCommand "stop #{stringHelper.escape part}", (err, stdout, stderr) ->
+  onPartsCommand: (command, part, ack) ->
+    this._runPartsCommand "#{command} #{stringHelper.escape part}", (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
       return ack? null, stdout

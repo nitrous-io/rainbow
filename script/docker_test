@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Get absolute path to script
+SCRIPT=$(readlink -f $0)
+SCRIPTPATH=$(dirname $SCRIPT)
+
+cd $SCRIPTPATH/.. && cp .env-example .env
+cd $SCRIPTPATH/../config && cp database-example.coffee database.coffee
+cd $SCRIPTPATH/.. && make test

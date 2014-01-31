@@ -148,7 +148,7 @@ describe 'SSHSocket', ->
           sinon.stub socket, 'onPTYClose'
           sinon.stub pty, 'spawn', (cmd, args) ->
             expect(cmd).to.equal '/usr/bin/ssh'
-            expect(args).to.deep.equal ['-sshargs']
+            expect(args).to.deep.equal ['-sshargs', '-t', 'test -d /home/action/workspace && cd /home/action/workspace; /bin/bash']
             mockPty
           doAction()
 

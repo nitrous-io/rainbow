@@ -8,6 +8,7 @@ pty = require 'pty.js'
 
 module.exports = class SSHSocket extends RainbowSocket
   namespace: 'ssh'
+  defaultDirectory: '/home/action/workspace'
 
   initialize: ->
     this.on 'start', _.bind(@onStart,  this)
@@ -53,6 +54,9 @@ module.exports = class SSHSocket extends RainbowSocket
         callback err
         return
       try
+        sshArgs.push("-t")
+        sshArgs.push("test -d #{@defaultDirectory} && cd #{@defaultDirectory}; /bin/bash")
+
         @pty = pty.spawn '/usr/bin/ssh', sshArgs
       catch err
         deleteKeyFile ->

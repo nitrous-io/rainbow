@@ -5,7 +5,8 @@ SSHHelper = actionBase.SSHHelper
 stringHelper = actionBase.stringHelper
 app = require '../../app'
 
-partsPath = '/home/action/.parts/autoparts/bin/parts'
+homePath = '/home/action'
+partsPath = "#{homePath}/.parts/autoparts/bin/parts"
 
 listItemRegex = ///
   ^             # start of line
@@ -111,7 +112,8 @@ module.exports = class PartsSocket extends RainbowSocket
 
   onListAll: (ack) ->
     separator = '------installedParts------'
-    @ssh.execCommand "#{partsPath} search && echo '#{separator}' && #{partsPath} list", (err, stdout, stderr) ->
+    command = "source #{homePath}/.bashrc && source #{homePath}/.bash_profile && #{partsPath} search && echo '#{separator}' && #{partsPath} list"
+    @ssh.execCommand command, (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
 
@@ -150,4 +152,4 @@ module.exports = class PartsSocket extends RainbowSocket
 
   _runPartsCommand: (command, callback)->
     # increase the timeout for SSH exec commands.
-    @ssh.execCommand "#{partsPath} #{command}", { timeout: 60000 }, callback
+    @ssh.execCommand "source #{homePath}/.bashrc && source #{homePath}/.bash_profile && #{partsPath} #{command}", { timeout: 60000 }, callback

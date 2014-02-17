@@ -7,6 +7,10 @@ KeyPair = require '../../app/models/key_pair'
 PartsSocket = require '../../app/sockets/parts_socket'
 app = require '../../app'
 
+childProcess = require 'child_process'
+inherits = require('util').inherits
+EventEmitter = require('events').EventEmitter
+
 describe 'PartsSocket', ->
   socket = ws = connection = null
 
@@ -79,6 +83,70 @@ describe 'PartsSocket', ->
     it 'passes the given command and callback along with a timeout to execCommand', ->
       socket._runPartsCommand 'list', cbSpy
       expect(execCommandStub).to.have.been.calledWith "source /home/action/.bashrc && source /home/action/.bash_profile && /home/action/.parts/autoparts/bin/parts list", { timeout: 60000 }, cbSpy
+
+  describe '#_runPartsCommandWithStreaming', ->
+    context 'when writeKeyFile fails with error', ->
+      beforeEach ->
+        err = new Error
+        writeKeyFileStub = sinon.stub().yields err
+        socket.ssh = { writeKeyFile: writeKeyFileStub }
+
+      afterEach ->
+        socket.ssh = null
+
+      it 'returns without executing further', ->
+        expect(socket._runPartsCommandWithStreaming 'list').to.be.undefined
+
+    context 'when writeKeyFile succeeds', ->
+      mockStdout = null
+      mockSpawn = null
+      deleteKeyFileSpy = null
+
+      beforeEach ->
+        deleteKeyFileSpy = sinon.spy()
+        writeKeyFileStub = sinon.stub().yields null, ['sshArg1', 'sshArg2'], deleteKeyFileSpy
+        socket.ssh = { writeKeyFile: writeKeyFileStub }
+
+        mockStdout = new EventEmitter()
+        mockSpawn = new EventEmitter()
+        mockSpawn.stdout = mockStdout
+        sinon.stub(childProcess, 'spawn').returns mockSpawn
+
+      afterEach ->
+        socket.ssh = null
+        childProcess.spawn.restore()
+
+      it 'spawns /usr/bin/ssh as a child process with correct ssh args and options', ->
+        socket._runPartsCommandWithStreaming 'list'
+        expect(childProcess.spawn).to.be.calledWith '/usr/bin/ssh',
+                                                    ['sshArg1', 'sshArg2', "export LC_ALL=en_US.UTF-8; /home/action/.parts/autoparts/bin/parts list"],
+                                                    { env: {} }
+
+      describe 'stream events', ->
+        beforeEach ->
+          socket._runPartsCommandWithStreaming 'list'
+          sinon.spy(socket, 'send')
+
+        afterEach ->
+          socket.send.restore()
+
+        it 'sends stdout data to the client', ->
+          mockStdout.emit 'data', 'abcdefgh'
+          expect(socket.send).to.be.calledWith 'output', 'abcdefgh'
+
+        context 'when the stream is closed', ->
+          it 'sends close message to the client', ->
+            mockSpawn.emit 'close', 0
+            expect(socket.send).to.be.calledWith 'close', 0
+
+          it 'calls deleteKeyFile', ->
+            mockSpawn.emit 'close', 0
+            expect(deleteKeyFileSpy).to.be.called
+
+        context "when there's an error in spawning", ->
+          it 'calls deleteKeyFile', ->
+            mockSpawn.emit 'error'
+            expect(deleteKeyFileSpy).to.have.been.called
 
   describe 'event: list', ->
     ackSpy = null

@@ -5,6 +5,8 @@ SSHHelper = actionBase.SSHHelper
 stringHelper = actionBase.stringHelper
 app = require '../../app'
 
+childProcess = require 'child_process'
+
 homePath = '/home/action'
 partsPath = "#{homePath}/.parts/autoparts/bin/parts"
 
@@ -153,3 +155,23 @@ module.exports = class PartsSocket extends RainbowSocket
   _runPartsCommand: (command, callback)->
     # increase the timeout for SSH exec commands.
     @ssh.execCommand "source #{homePath}/.bashrc && source #{homePath}/.bash_profile && #{partsPath} #{command}", { timeout: 60000 }, callback
+
+  _runPartsCommandWithStreaming: (command) ->
+    @ssh.writeKeyFile (err, sshArgs, deleteKeyFile) =>
+      if err
+        return
+
+      sshArgs.push("export LC_ALL=en_US.UTF-8; #{partsPath} #{command}")
+
+      # TODO: pass the parts path and related env variables
+      partsProcess = childProcess.spawn '/usr/bin/ssh', sshArgs, { env: {} }
+
+      partsProcess.stdout.on 'data', (data) =>
+        this.send 'output', data
+
+      partsProcess.on 'close', (code) =>
+        deleteKeyFile()
+        this.send 'close', code
+
+      partsProcess.on 'error', ->
+        deleteKeyFile()

@@ -84,70 +84,6 @@ describe 'PartsSocket', ->
       socket._runPartsCommand 'list', cbSpy
       expect(execCommandStub).to.have.been.calledWith "source /home/action/.bashrc && source /home/action/.bash_profile && /home/action/.parts/autoparts/bin/parts list", { timeout: 60000 }, cbSpy
 
-  describe '#_runPartsCommandWithStreaming', ->
-    context 'when writeKeyFile fails with error', ->
-      beforeEach ->
-        err = new Error
-        writeKeyFileStub = sinon.stub().yields err
-        socket.ssh = { writeKeyFile: writeKeyFileStub }
-
-      afterEach ->
-        socket.ssh = null
-
-      it 'returns without executing further', ->
-        expect(socket._runPartsCommandWithStreaming 'list').to.be.undefined
-
-    context 'when writeKeyFile succeeds', ->
-      mockStdout = null
-      mockSpawn = null
-      deleteKeyFileSpy = null
-
-      beforeEach ->
-        deleteKeyFileSpy = sinon.spy()
-        writeKeyFileStub = sinon.stub().yields null, ['sshArg1', 'sshArg2'], deleteKeyFileSpy
-        socket.ssh = { writeKeyFile: writeKeyFileStub }
-
-        mockStdout = new EventEmitter()
-        mockSpawn = new EventEmitter()
-        mockSpawn.stdout = mockStdout
-        sinon.stub(childProcess, 'spawn').returns mockSpawn
-
-      afterEach ->
-        socket.ssh = null
-        childProcess.spawn.restore()
-
-      it 'spawns /usr/bin/ssh as a child process with correct ssh args and options', ->
-        socket._runPartsCommandWithStreaming 'list'
-        expect(childProcess.spawn).to.be.calledWith '/usr/bin/ssh',
-                                                    ['sshArg1', 'sshArg2', "export LC_ALL=en_US.UTF-8; /home/action/.parts/autoparts/bin/parts list"],
-                                                    { env: {} }
-
-      describe 'stream events', ->
-        beforeEach ->
-          socket._runPartsCommandWithStreaming 'list'
-          sinon.spy(socket, 'send')
-
-        afterEach ->
-          socket.send.restore()
-
-        it 'sends stdout data to the client', ->
-          mockStdout.emit 'data', 'abcdefgh'
-          expect(socket.send).to.be.calledWith 'output', 'abcdefgh'
-
-        context 'when the stream is closed', ->
-          it 'sends close message to the client', ->
-            mockSpawn.emit 'close', 0
-            expect(socket.send).to.be.calledWith 'close', 0
-
-          it 'calls deleteKeyFile', ->
-            mockSpawn.emit 'close', 0
-            expect(deleteKeyFileSpy).to.be.called
-
-        context "when there's an error in spawning", ->
-          it 'calls deleteKeyFile', ->
-            mockSpawn.emit 'error'
-            expect(deleteKeyFileSpy).to.have.been.called
-
   describe 'event: list', ->
     ackSpy = null
 
@@ -368,191 +304,120 @@ describe 'PartsSocket', ->
             expect(output).to.be.null
             done()
 
-  describe 'event: install', ->
-    ackSpy = null
+  describe '#_streamPartsCommand', ->
+    context 'when writeKeyFile fails with error', ->
+      beforeEach ->
+        err = new Error
+        writeKeyFileStub = sinon.stub().yields err
+        socket.ssh = { writeKeyFile: writeKeyFileStub }
 
+      afterEach ->
+        socket.ssh = null
+
+      it 'returns without executing further', ->
+        expect(socket._streamPartsCommand 'install', 'part').to.be.undefined
+
+    context 'when writeKeyFile succeeds', ->
+      mockStdout = null
+      mockStderr = null
+      mockSpawn = null
+      deleteKeyFileSpy = null
+
+      beforeEach ->
+        deleteKeyFileSpy = sinon.spy()
+        writeKeyFileStub = sinon.stub().yields null, ['sshArg1', 'sshArg2'], deleteKeyFileSpy
+        socket.ssh = { writeKeyFile: writeKeyFileStub }
+
+        mockStdout = new EventEmitter()
+        mockStderr = new EventEmitter()
+        mockSpawn = new EventEmitter()
+        mockSpawn.stdout = mockStdout
+        mockSpawn.stderr = mockStderr
+        sinon.stub(childProcess, 'spawn').returns mockSpawn
+
+      afterEach ->
+        socket.ssh = null
+        childProcess.spawn.restore()
+
+      it 'spawns /usr/bin/ssh as a child process with correct ssh args and options', ->
+        socket._streamPartsCommand 'install', 'mysql'
+        expect(childProcess.spawn).to.be.calledWith '/usr/bin/ssh',
+                                                    ['sshArg1', 'sshArg2', 'export LC_ALL=en_US.UTF-8;', "/home/action/.parts/autoparts/bin/parts install 'mysql'"],
+                                                    { env: {} }
+
+      describe 'stream events', ->
+        beforeEach ->
+          socket._streamPartsCommand 'install', 'mysql'
+          sinon.spy(socket, 'send')
+
+        afterEach ->
+          socket.send.restore()
+
+        it 'sends stdout data to the client', ->
+          mockStdout.emit 'data', 'abcdefgh'
+          expect(socket.send).to.be.calledWith 'commandOutput', 'abcdefgh'
+
+        it 'sends stderr data to the client', ->
+          mockStderr.emit 'data', 'abcdefgh'
+          expect(socket.send).to.be.calledWith 'commandError', 'abcdefgh'
+
+        context 'when the stream is closed', ->
+          it 'sends close message to the client', ->
+            mockSpawn.emit 'close', 0
+            expect(socket.send).to.be.calledWith 'commandComplete', 0
+
+          it 'calls deleteKeyFile', ->
+            mockSpawn.emit 'close', 0
+            expect(deleteKeyFileSpy).to.be.called
+
+        context "when there's an error in spawning", ->
+          it 'calls deleteKeyFile', ->
+            mockSpawn.emit 'error'
+            expect(deleteKeyFileSpy).to.have.been.called
+
+  describe 'event: install', ->
     beforeEach ->
-      cbSpy = sinon.spy()
-      sinon.stub socket, '_runPartsCommand'
+      sinon.stub socket, '_streamPartsCommand'
 
     afterEach ->
-      socket._runPartsCommand.restore()
+      socket._streamPartsCommand.restore()
 
-    it 'calls _runPartsCommand with install command', ->
-      socket.emit 'install', 'redis', ackSpy
-      expect(socket._runPartsCommand).to.have.been.calledWith "install 'redis'"
-
-    context 'when _runPartsCommand succeeds', ->
-      context 'when the package is installed', ->
-        stdout = null
-
-        beforeEach ->
-          stdout = '''
-            => Extracting archive
-            => Installing
-            => Symlinking
-            => Installed redis 2.6.16
-            To start the server:
-              $ parts start redis
-            To stop the server:
-              $ parts stop redis
-            To connect to the server:
-              $ redis-cli
-
-          '''
-          socket._runPartsCommand.callsArgWith 1, null, stdout
-
-        it 'returns the stdout', (done) ->
-          socket.emit 'install', 'redis', (err, output) ->
-            expect(err).to.be.null
-            expect(output).to.equal stdout
-            done()
-
-    context 'when _runPartsCommand fails', ->
-      context 'some error', ->
-        beforeEach ->
-          socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
-
-        it 'returns an error', (done) ->
-          socket.emit 'install', 'redis', (err, output) ->
-            expect(err).not.to.be.null
-            expect(output).to.be.null
-            done()
+    it 'calls _streamPartsCommand with install command and part name', ->
+      socket.emit 'install', 'redis'
+      expect(socket._streamPartsCommand).to.have.been.calledWith 'install', 'redis'
 
   describe 'event: uninstall', ->
-    ackSpy = null
-
     beforeEach ->
-      cbSpy = sinon.spy()
-      sinon.stub socket, '_runPartsCommand'
+      sinon.stub socket, '_streamPartsCommand'
 
     afterEach ->
-      socket._runPartsCommand.restore()
+      socket._streamPartsCommand.restore()
 
-    it 'calls _runPartsCommand with uninstall command', ->
-      socket.emit 'uninstall', 'redis', ackSpy
-      expect(socket._runPartsCommand).to.have.been.calledWith "uninstall 'redis'"
-
-    context 'when _runPartsCommand succeeds', ->
-      context 'when the package is uninstalled', ->
-        stdout = null
-
-        beforeEach ->
-          stdout = '''
-            => Removing symlinks...
-            => Uninstalling...
-            => Uninstalled redis 2.6.16
-
-          '''
-          socket._runPartsCommand.callsArgWith 1, null, stdout
-
-        it 'returns the stdout', (done) ->
-          socket.emit 'uninstall', 'redis', (err, output) ->
-            expect(err).to.be.null
-            expect(output).to.equal stdout
-            done()
-
-    context 'when _runPartsCommand fails', ->
-      context 'some error', ->
-        beforeEach ->
-          socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
-
-        it 'returns an error', (done) ->
-          socket.emit 'uninstall', 'redis', (err, output) ->
-            expect(err).not.to.be.null
-            expect(output).to.be.null
-            done()
+    it 'calls _streamPartsCommand with uninstall command and part name', ->
+      socket.emit 'uninstall', 'redis'
+      expect(socket._streamPartsCommand).to.have.been.calledWith 'uninstall', 'redis'
 
   describe 'event: partStart', ->
-    ackSpy = null
-
     beforeEach ->
-      cbSpy = sinon.spy()
-      sinon.stub socket, '_runPartsCommand'
+      sinon.stub socket, '_streamPartsCommand'
 
     afterEach ->
-      socket._runPartsCommand.restore()
+      socket._streamPartsCommand.restore()
 
-    it 'calls _runPartsCommand with start command', ->
-      socket.emit 'partStart', 'mongodb', ackSpy
-      expect(socket._runPartsCommand).to.have.been.calledWith "start 'mongodb'"
-
-    context 'when _runPartsCommand succeeds', ->
-      context 'when the package is started', ->
-        stdout = null
-
-        beforeEach ->
-          stdout = '''
-          => Starting mongodb
-          about to fork child process, waiting until server is ready for connections
-          forked process: 4458
-          all output going to: /home/action/.parts/var/log/mongodb/mongod.log
-          child process started successfully, parent exiting
-          => Started: mongodb
-
-          '''
-          socket._runPartsCommand.callsArgWith 1, null, stdout
-
-        it 'returns the stdout', (done) ->
-          socket.emit 'partStart', 'mongodb', (err, output) ->
-            expect(err).to.be.null
-            expect(output).to.equal stdout
-            done()
-
-    context 'when _runPartsCommand fails', ->
-      context 'some error', ->
-        beforeEach ->
-          socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
-
-        it 'returns an error', (done) ->
-          socket.emit 'partStart', 'mongodb', (err, output) ->
-            expect(err).not.to.be.null
-            expect(output).to.be.null
-            done()
+    it 'calls _streamPartsCommand with start command and part name', ->
+      socket.emit 'partStart', 'redis'
+      expect(socket._streamPartsCommand).to.have.been.calledWith 'start', 'redis'
 
   describe 'event: partStop', ->
-    ackSpy = null
-
     beforeEach ->
-      cbSpy = sinon.spy()
-      sinon.stub socket, '_runPartsCommand'
+      sinon.stub socket, '_streamPartsCommand'
 
     afterEach ->
-      socket._runPartsCommand.restore()
+      socket._streamPartsCommand.restore()
 
-    it 'calls _runPartsCommand with stop command', ->
-      socket.emit 'partStop', 'mongodb', ackSpy
-      expect(socket._runPartsCommand).to.have.been.calledWith "stop 'mongodb'"
-
-    context 'when _runPartsCommand succeeds', ->
-      context 'when the package is stopped', ->
-        stdout = null
-
-        beforeEach ->
-          stdout = '''
-          => Stopping mongodb
-          killing process with pid: xxxx
-          => Stopped: mongodb
-
-          '''
-          socket._runPartsCommand.callsArgWith 1, null, stdout
-
-        it 'returns the stdout', (done) ->
-          socket.emit 'partStop', 'mongodb', (err, output) ->
-            expect(err).to.be.null
-            expect(output).to.equal stdout
-            done()
-
-    context 'when _runPartsCommand fails', ->
-      context 'some error', ->
-        beforeEach ->
-          socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
-
-        it 'returns an error', (done) ->
-          socket.emit 'partStop', 'mongodb', (err, output) ->
-            expect(err).not.to.be.null
-            expect(output).to.be.null
-            done()
+    it 'calls _streamPartsCommand with stop command and part name', ->
+      socket.emit 'partStop', 'redis'
+      expect(socket._streamPartsCommand).to.have.been.calledWith 'stop', 'redis'
 
   describe '#destroy', ->
     it 'deletes @ssh and @box', ->

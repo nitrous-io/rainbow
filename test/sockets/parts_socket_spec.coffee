@@ -82,7 +82,7 @@ describe 'PartsSocket', ->
 
     it 'passes the given command and callback along with a timeout to execCommand', ->
       socket._runPartsCommand 'list', cbSpy
-      expect(execCommandStub).to.have.been.calledWith "source /home/action/.bashrc && source /home/action/.bash_profile && /home/action/.parts/autoparts/bin/parts list", { timeout: 60000 }, cbSpy
+      expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts list", { timeout: 60000 }, cbSpy
 
   describe 'event: list', ->
     ackSpy = null
@@ -268,7 +268,7 @@ describe 'PartsSocket', ->
 
     it 'calls execCommand with combined command', ->
       socket.emit 'listAll', ackSpy
-      expect(execCommandStub).to.have.been.calledWith "source /home/action/.bashrc && source /home/action/.bash_profile && /home/action/.parts/autoparts/bin/parts search && echo '------installedParts------' && /home/action/.parts/autoparts/bin/parts list", sinon.match.func
+      expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts search && echo '------installedParts------' && /home/action/.parts/autoparts/bin/parts list", sinon.match.func
 
     context 'when execCommand succeeds', ->
       beforeEach ->

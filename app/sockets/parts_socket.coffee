@@ -5,6 +5,8 @@ SSHHelper = actionBase.SSHHelper
 stringHelper = actionBase.stringHelper
 app = require '../../app'
 
+childProcess = require 'child_process'
+
 homePath = '/home/action'
 partsPath = "#{homePath}/.parts/autoparts/bin/parts"
 
@@ -45,11 +47,11 @@ module.exports = class PartsSocket extends RainbowSocket
     this.on 'search',     _.bind(@onSearch,    this)
     this.on 'status',     _.bind(@onStatus,    this)
 
-    # following commands can be handled with a common handler.
-    this.on 'install',    _.bind(@onPartsCommand, this, 'install')
-    this.on 'uninstall',  _.bind(@onPartsCommand, this, 'uninstall')
-    this.on 'partStart',  _.bind(@onPartsCommand, this, 'start')
-    this.on 'partStop',   _.bind(@onPartsCommand, this, 'stop')
+    # following commands are handled with a common streaming handler.
+    this.on 'install',     (part) => @_streamPartsCommand 'install', part
+    this.on 'uninstall',   (part) => @_streamPartsCommand 'uninstall', part
+    this.on 'partStart',   (part) => @_streamPartsCommand 'start', part
+    this.on 'partStop',    (part) => @_streamPartsCommand 'stop', part
 
   destroy: ->
     @ssh = undefined
@@ -112,7 +114,7 @@ module.exports = class PartsSocket extends RainbowSocket
 
   onListAll: (ack) ->
     separator = '------installedParts------'
-    command = "source #{homePath}/.bashrc && source #{homePath}/.bash_profile && #{partsPath} search && echo '#{separator}' && #{partsPath} list"
+    command = "#{partsPath} search && echo '#{separator}' && #{partsPath} list"
     @ssh.execCommand command, (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
@@ -144,12 +146,29 @@ module.exports = class PartsSocket extends RainbowSocket
 
       return ack? null, parts
 
-  onPartsCommand: (command, part, ack) ->
-    this._runPartsCommand "#{command} #{stringHelper.escape part}", (err, stdout, stderr) ->
-      if err
-        return ack? err.toString(), null
-      return ack? null, stdout
-
   _runPartsCommand: (command, callback)->
     # increase the timeout for SSH exec commands.
-    @ssh.execCommand "source #{homePath}/.bashrc && source #{homePath}/.bash_profile && #{partsPath} #{command}", { timeout: 60000 }, callback
+    @ssh.execCommand "#{partsPath} #{command}", { timeout: 60000 }, callback
+
+  _streamPartsCommand: (command, part) ->
+    @ssh.writeKeyFile (err, sshArgs, deleteKeyFile) =>
+      if err
+        return
+
+      sshArgs.push "export LC_ALL=en_US.UTF-8;"
+      sshArgs.push "#{partsPath} #{command} #{stringHelper.escape part}"
+
+      partsProcess = childProcess.spawn '/usr/bin/ssh', sshArgs, { env: {} }
+
+      partsProcess.stdout.on 'data', (data) =>
+        this.send 'commandOutput', data.toString()
+
+      partsProcess.stderr.on 'data', (data) =>
+        this.send 'commandError', data.toString()
+
+      partsProcess.on 'close', (code) =>
+        deleteKeyFile()
+        this.send 'commandComplete', code
+
+      partsProcess.on 'error', ->
+        deleteKeyFile()

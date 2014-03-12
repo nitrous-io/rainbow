@@ -141,8 +141,11 @@ module.exports = class PartsSocket extends RainbowSocket
             version = match[2]
             part = _.find parts, (p) ->
               (p.name == name)
-            part.installed = true
-            part.installed_version = version
+            # For some reason within autoparts (Greg was making changes to packages within autoparts directly)
+            # it was failing and this part was failing cos it was not finding a part object
+            if part
+              part.installed = true
+              part.installed_version = version
 
       return ack? null, parts
 

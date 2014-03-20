@@ -15,16 +15,12 @@ module.exports = class SSHSocket extends RainbowSocket
     this.on 'r',     _.bind(@onResize, this)
     this.on 'kill',  _.bind(@onKill,   this)
     @sshStarted = false
-    @mux = undefined
 
   destroy: ->
     @sshStarted = false
     @pty?.removeAllListeners()
     @pty?.destroy()
-    @mux?.removeAllListeners()
-    @mux?.destroy()
     @pty = undefined
-    @mux = undefined
 
   onStart: (boxId, termId, ack) ->
     @sshStarted = false
@@ -56,12 +52,7 @@ module.exports = class SSHSocket extends RainbowSocket
       if err
         callback err
         return
-      # start gomux in a background process and attach to the term id
       try
-        muxArgs = _.clone sshArgs
-        muxArgs.push("gomux events")
-        @mux = pty.spawn "/usr/bin/ssh", muxArgs
-
         sshArgs.unshift("-o requestTTY=yes")
         sshArgs.push("gomux attach #{termId}")
         @pty = pty.spawn '/usr/bin/ssh', sshArgs
@@ -72,17 +63,9 @@ module.exports = class SSHSocket extends RainbowSocket
       @pty.once 'data', =>
         deleteKeyFile()
         @sshStarted = true
-      @mux.on 'data',  _.bind(@onMuxEvents, this)
-      @mux.on 'close',  _.bind(@onPTYClose, this)
       @pty.on 'data',  _.bind(@onPTYData, this)
       @pty.on 'close', _.bind(@onPTYClose, this)
       callback null
-
-  onMuxEvents: (data) ->
-    try
-      this.send 'mux', JSON.parse(data)
-    catch err
-      console.log "ERROR: #{err}, data: #{data}"
 
   onPTYData: (data) ->
     this.send 'p', data

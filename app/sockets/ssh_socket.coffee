@@ -79,7 +79,10 @@ module.exports = class SSHSocket extends RainbowSocket
       callback null
 
   onMuxEvents: (data) ->
-    this.send 'mux', JSON.parse(data)
+    try
+      this.send 'mux', JSON.parse(data)
+    catch err
+      console.log "ERROR: #{err}, data: #{data}"
 
   onPTYData: (data) ->
     this.send 'p', data

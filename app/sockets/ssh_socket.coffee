@@ -23,6 +23,11 @@ module.exports = class SSHSocket extends RainbowSocket
     @pty = undefined
 
   onStart: (boxId, termId, ack) ->
+    # if we call it with only `boxId` and `ack` callback, just set termId to null
+    # and set `ack` correctly to the callback function
+    if arguments.length == 2
+      ack = termId
+      termId = null
     @sshStarted = false
     return ack?('pty already created') if @pty
     this.fetchBoxAndKeyPair boxId, (err, box, keyPair) =>
@@ -52,9 +57,12 @@ module.exports = class SSHSocket extends RainbowSocket
       if err
         callback err
         return
-      try
+      # if termId is specified we assumed that user want to connec to that
+      # terminal session ( with gomux ) instead of just a normal bash session
+      if termId
         sshArgs.unshift("-o requestTTY=yes")
         sshArgs.push("gomux attach #{termId}")
+      try
         @pty = pty.spawn '/usr/bin/ssh', sshArgs
       catch err
         deleteKeyFile ->

@@ -33,59 +33,78 @@ describe 'SSHSocket', ->
     afterEach ->
       socket.fetchBoxAndKeyPair.restore()
 
-    doAction = ->
-      socket.emit 'start', 111, ackSpy
+    context "when connect with a term id", ->
+      doAction = -> socket.emit 'start', 111, 1234, ackSpy
 
-    context 'when a pty session is already created', ->
-      beforeEach ->
-        socket.pty = sinon.spy()
-        doAction()
+      context 'when #fetchBoxAndKeyPair returns box and key pair', ->
+        box = keyPair = null
 
-      it 'calls ack callback with the error message', ->
-        expect(ackSpy).to.have.been.calledWith 'pty already created'
-
-    it 'calls #fetchBoxAndKeyPair with the given box id', ->
-      doAction()
-      expect(socket.fetchBoxAndKeyPair).to.have.been.calledWith 111, sinon.match.func
-
-    context 'when #fetchBoxAndKeyPair returns an error', ->
-      beforeEach ->
-        doAction()
-        socket.fetchBoxAndKeyPair.yield 'some error'
-
-      it 'calls ack callback with the error message', ->
-        expect(ackSpy).to.have.been.calledWith 'some error'
-
-    context 'when #fetchBoxAndKeyPair returns box and key pair', ->
-      box = null
-      keyPair = null
-
-      beforeEach ->
-        box = new Box id: 123, host: 'foobar.action.io', port: 2234
-        keyPair = new KeyPair
-        sinon.stub socket, 'connectToSSH'
-        doAction()
-        socket.fetchBoxAndKeyPair.yield null, box, keyPair
-
-      afterEach ->
-        socket.connectToSSH.restore()
-
-      it 'calls connectToSSH with the box and key pair', ->
-        expect(socket.connectToSSH).to.have.been.calledWith box, keyPair, sinon.match.func
-
-      context 'when connectToSSH fails', ->
         beforeEach ->
-          socket.connectToSSH.yield 'some error'
+          box = new Box id: 123, host: 'foobar.action.io', port: 2234
+          keyPair = new KeyPair
+          sinon.stub socket, 'connectToSSH'
+          doAction()
+          socket.fetchBoxAndKeyPair.yield null, box, keyPair
+
+        afterEach ->
+          socket.connectToSSH.restore()
+
+        it 'calls connectToSSH with the box and key pair', ->
+          expect(socket.connectToSSH).to.have.been.calledWith box, keyPair, 1234, sinon.match.func
+
+    context "when connect without specifying a term id", ->
+      doAction = -> socket.emit 'start', 111, ackSpy
+
+      context 'when a pty session is already created', ->
+        beforeEach ->
+          socket.pty = sinon.spy()
+          doAction()
 
         it 'calls ack callback with the error message', ->
-          expect(ackSpy).to.have.been.calledWith 'failed to create ssh connection'
+          expect(ackSpy).to.have.been.calledWith 'pty already created'
 
-      context 'when connectToSSH succeeds', ->
+      it 'calls #fetchBoxAndKeyPair with the given box id', ->
+        doAction()
+        expect(socket.fetchBoxAndKeyPair).to.have.been.calledWith 111, sinon.match.func
+
+      context 'when #fetchBoxAndKeyPair returns an error', ->
         beforeEach ->
-          socket.connectToSSH.yield null
+          doAction()
+          socket.fetchBoxAndKeyPair.yield 'some error'
 
-        it 'calls ack callback with no error', ->
-          expect(ackSpy).to.have.been.calledWith undefined
+        it 'calls ack callback with the error message', ->
+          expect(ackSpy).to.have.been.calledWith 'some error'
+
+      context 'when #fetchBoxAndKeyPair returns box and key pair', ->
+        box = null
+        keyPair = null
+
+        beforeEach ->
+          box = new Box id: 123, host: 'foobar.action.io', port: 2234
+          keyPair = new KeyPair
+          sinon.stub socket, 'connectToSSH'
+          doAction()
+          socket.fetchBoxAndKeyPair.yield null, box, keyPair
+
+        afterEach ->
+          socket.connectToSSH.restore()
+
+        it 'calls connectToSSH with the box and key pair', ->
+          expect(socket.connectToSSH).to.have.been.calledWith box, keyPair, null, sinon.match.func
+
+        context 'when connectToSSH fails', ->
+          beforeEach ->
+            socket.connectToSSH.yield 'some error'
+
+          it 'calls ack callback with the error message', ->
+            expect(ackSpy).to.have.been.calledWith 'failed to create ssh connection'
+
+        context 'when connectToSSH succeeds', ->
+          beforeEach ->
+            socket.connectToSSH.yield null
+
+          it 'calls ack callback with no error', ->
+            expect(ackSpy).to.have.been.calledWith undefined
 
   describe '#connectToSSH', ->
     error = cbSpy = null
@@ -102,80 +121,113 @@ describe 'SSHSocket', ->
     afterEach ->
       SSHHelper::writeKeyFile.restore()
 
-    doAction = ->
-      socket.connectToSSH box, keyPair, cbSpy
+    context "when connect with a term id", ->
+      doAction = -> socket.connectToSSH box, keyPair, 1234, cbSpy
 
-    context 'when writing keypair to the temp file fails with error', ->
-      beforeEach ->
-        error = new Error
-        SSHHelper::writeKeyFile.callsArgWith 0, error, null, null
-        doAction()
-
-      it 'calls callback with error', ->
-          expect(cbSpy).to.have.been.calledWith error
-
-    context 'when writing keypair to the temp file succeeds', ->
-      deleteKeyFileSpy = null
-
-      beforeEach ->
-        deleteKeyFileSpy = sinon.spy (cb) -> cb?()
-        SSHHelper::writeKeyFile.callsArgWith 0, null, ['-sshargs'], deleteKeyFileSpy
-
-      context 'when spawning a new pty fails with exception', ->
-        error = null
+      context 'when writing keypair to the temp file succeeds', ->
+        deleteKeyFileSpy = null
 
         beforeEach ->
+          deleteKeyFileSpy = sinon.spy (cb) -> cb?()
+          SSHHelper::writeKeyFile.callsArgWith 0, null, ['-sshargs'], deleteKeyFileSpy
+
+        context 'when spawning a new pty succeeds', ->
+          mockPty = null
+
+          beforeEach ->
+            mockPty = new EventEmitter()
+            sinon.stub socket, 'onPTYData'
+            sinon.stub socket, 'onPTYClose'
+            sinon.stub pty, 'spawn', (cmd, args) ->
+              expect(cmd).to.equal '/usr/bin/ssh'
+              expect(args).to.deep.equal [
+                '-o requestTTY=yes'
+                '-sshargs'
+                'gomux attach 1234'
+              ]
+              mockPty
+            doAction()
+
+          afterEach ->
+            pty.spawn.restore()
+
+          it 'calls callback with no error', ->
+            expect(cbSpy).to.have.been.calledWith null
+
+    context "when connect without a term id", ->
+      doAction = -> socket.connectToSSH box, keyPair, null, cbSpy
+
+      context 'when writing keypair to the temp file fails with error', ->
+        beforeEach ->
           error = new Error
-          sinon.stub pty, 'spawn', (cmd, args) ->
-            throw new Error 'pty error'
+          SSHHelper::writeKeyFile.callsArgWith 0, error, null, null
           doAction()
-
-        afterEach ->
-          pty.spawn.restore()
-
-        it 'deletes the key file', ->
-          expect(deleteKeyFileSpy).to.have.been.called
 
         it 'calls callback with error', ->
           expect(cbSpy).to.have.been.calledWith error
 
-      context 'when spawning a new pty succeeds', ->
-        mockPty = null
+      context 'when writing keypair to the temp file succeeds', ->
+        deleteKeyFileSpy = null
 
         beforeEach ->
-          mockPty = new EventEmitter()
-          sinon.stub socket, 'onPTYData'
-          sinon.stub socket, 'onPTYClose'
-          sinon.stub pty, 'spawn', (cmd, args) ->
-            expect(cmd).to.equal '/usr/bin/ssh'
-            expect(args).to.deep.equal ['-sshargs']
-            mockPty
-          doAction()
+          deleteKeyFileSpy = sinon.spy (cb) -> cb?()
+          SSHHelper::writeKeyFile.callsArgWith 0, null, ['-sshargs'], deleteKeyFileSpy
 
-        afterEach ->
-          pty.spawn.restore()
+        context 'when spawning a new pty fails with exception', ->
+          error = null
 
-        it 'calls callback with no error', ->
-          expect(cbSpy).to.have.been.calledWith null
+          beforeEach ->
+            error = new Error
+            sinon.stub pty, 'spawn', (cmd, args) ->
+              throw new Error 'pty error'
+            doAction()
 
-        describe 'pty events', ->
-          context "the first time 'data' event is received", ->
-            it 'deletes they key file', ->
-              expect(deleteKeyFileSpy).not.to.have.been.called
-              mockPty.emit 'data'
-              expect(deleteKeyFileSpy).to.have.been.calledOnce
-              mockPty.emit 'data'
-              expect(deleteKeyFileSpy).to.have.been.calledOnce # only gets called once
+          afterEach ->
+            pty.spawn.restore()
 
-          context 'data', ->
-            it 'is handled by #onPTYData', ->
-              mockPty.emit 'data'
-              expect(socket.onPTYData).to.have.been.called
+          it 'deletes the key file', ->
+            expect(deleteKeyFileSpy).to.have.been.called
 
-          context 'close', ->
-            it 'is handled by #onPTYClose', ->
-              mockPty.emit 'close'
-              expect(socket.onPTYClose).to.have.been.called
+          it 'calls callback with error', ->
+            expect(cbSpy).to.have.been.calledWith error
+
+        context 'when spawning a new pty succeeds', ->
+          mockPty = null
+
+          beforeEach ->
+            mockPty = new EventEmitter()
+            sinon.stub socket, 'onPTYData'
+            sinon.stub socket, 'onPTYClose'
+            sinon.stub pty, 'spawn', (cmd, args) ->
+              expect(cmd).to.equal '/usr/bin/ssh'
+              expect(args).to.deep.equal ['-sshargs']
+              mockPty
+            doAction()
+
+          afterEach ->
+            pty.spawn.restore()
+
+          it 'calls callback with no error', ->
+            expect(cbSpy).to.have.been.calledWith null
+
+          describe 'pty events', ->
+            context "the first time 'data' event is received", ->
+              it 'deletes they key file', ->
+                expect(deleteKeyFileSpy).not.to.have.been.called
+                mockPty.emit 'data'
+                expect(deleteKeyFileSpy).to.have.been.calledOnce
+                mockPty.emit 'data'
+                expect(deleteKeyFileSpy).to.have.been.calledOnce # only gets called once
+
+            context 'data', ->
+              it 'is handled by #onPTYData', ->
+                mockPty.emit 'data'
+                expect(socket.onPTYData).to.have.been.called
+
+            context 'close', ->
+              it 'is handled by #onPTYClose', ->
+                mockPty.emit 'close'
+                expect(socket.onPTYClose).to.have.been.called
 
   context 'event: d', ->
     context 'when a pty session does not exist', ->

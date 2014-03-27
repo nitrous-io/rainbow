@@ -10,6 +10,7 @@ module.exports = class MuxSocket extends RainbowSocket
   initialize: ->
     this.on 'start', _.bind(@onStart,  this)
     this.on 'kill',  _.bind(@onKill,   this)
+    this.on 'listAll', _.bind(@onListAll, this)
     @sshStarted = false
     @mux = undefined
 
@@ -32,14 +33,15 @@ module.exports = class MuxSocket extends RainbowSocket
     this.destroy()
 
   connectToSSH: (box, keyPair, termId, callback) ->
-    sshHelper = new SSHHelper 'action', box.host, box.port, keyPair.private_key
-    sshHelper.writeKeyFile (err, sshArgs, deleteKeyFile) =>
+    @ssh = new SSHHelper 'action', box.host, box.port, keyPair.private_key
+    @ssh.writeKeyFile (err, sshArgs, deleteKeyFile) =>
       if err
         callback err
         return
       # start gomux in a background process and attach to the term id
       try
         muxArgs = _.clone sshArgs
+        muxArgs.push("-t") # force tty allocation so we can interrupt gomux events
         muxArgs.push("gomux events")
         @mux = pty.spawn "/usr/bin/ssh", muxArgs
       catch err
@@ -52,6 +54,17 @@ module.exports = class MuxSocket extends RainbowSocket
       @mux.on 'data',  _.bind(@onMuxEvents, this)
       @mux.on 'close',  _.bind(@onMuxClose, this)
       callback null
+
+  # list all current sessions
+  onListAll: (ack) ->
+    @ssh.execCommand "gomux", (err, stdout, stderr) ->
+      return ack?(err.toString(), null) if err
+      try
+        data = JSON.parse stdout
+        console.log data
+        return ack? null, data
+      catch err
+        return ack?(err.toString(), null)
 
   onMuxEvents: (data) ->
     try

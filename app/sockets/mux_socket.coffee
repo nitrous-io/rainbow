@@ -40,10 +40,9 @@ module.exports = class MuxSocket extends RainbowSocket
         return
       # start gomux in a background process and attach to the term id
       try
-        muxArgs = _.clone sshArgs
-        muxArgs.push("-t") # force tty allocation so we can interrupt gomux events
-        muxArgs.push("gomux events")
-        @mux = pty.spawn "/usr/bin/ssh", muxArgs
+        sshArgs.push("-t") # force tty allocation so we can interrupt gomux events
+        sshArgs.push("gomux events")
+        @mux = pty.spawn "/usr/bin/ssh", sshArgs
       catch err
         deleteKeyFile ->
           callback err
@@ -61,10 +60,9 @@ module.exports = class MuxSocket extends RainbowSocket
       return ack?(err.toString(), null) if err
       try
         data = JSON.parse stdout
-        console.log data
         return ack? null, data
       catch err
-        return ack?(err.toString(), null)
+        return ack?(new Error("failed to list sessions"), null)
 
   onMuxEvents: (data) ->
     try

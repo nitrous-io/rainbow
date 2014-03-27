@@ -22,12 +22,17 @@ module.exports = class SSHSocket extends RainbowSocket
     @pty?.destroy()
     @pty = undefined
 
-  onStart: (boxId, ack) ->
+  onStart: (boxId, termId, ack) ->
+    # if we call it with only `boxId` and `ack` callback, just set termId to null
+    # and set `ack` correctly to the callback function
+    if arguments.length == 2
+      ack = termId
+      termId = null
     @sshStarted = false
     return ack?('pty already created') if @pty
     this.fetchBoxAndKeyPair boxId, (err, box, keyPair) =>
       return ack?(err) if err
-      this.connectToSSH box, keyPair, (error) =>
+      this.connectToSSH box, keyPair, termId, (error) =>
         return ack?('failed to create ssh connection') if error
         ack?()
 
@@ -46,12 +51,17 @@ module.exports = class SSHSocket extends RainbowSocket
   onKill: ->
     this.destroy()
 
-  connectToSSH: (box, keyPair, callback) ->
+  connectToSSH: (box, keyPair, termId, callback) ->
     sshHelper = new SSHHelper 'action', box.host, box.port, keyPair.private_key
     sshHelper.writeKeyFile (err, sshArgs, deleteKeyFile) =>
       if err
         callback err
         return
+      # if termId is specified we assumed that user want to connec to that
+      # terminal session ( with gomux ) instead of just a normal bash session
+      if termId
+        sshArgs.unshift("-o requestTTY=yes")
+        sshArgs.push("gomux attach #{termId}")
       try
         @pty = pty.spawn '/usr/bin/ssh', sshArgs
       catch err

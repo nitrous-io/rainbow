@@ -22,12 +22,12 @@ module.exports = class SSHSocket extends RainbowSocket
     @pty?.destroy()
     @pty = undefined
 
-  onStart: (boxId, ack) ->
+  onStart: (boxId, sessionToken, ack) ->
     @sshStarted = false
     return ack?('pty already created') if @pty
     this.fetchBoxAndKeyPair boxId, (err, box, keyPair) =>
       return ack?(err) if err
-      this.connectToSSH box, keyPair, (error) =>
+      this.connectToSSH box, keyPair, sessionToken, (error) =>
         return ack?('failed to create ssh connection') if error
         ack?()
 
@@ -46,14 +46,16 @@ module.exports = class SSHSocket extends RainbowSocket
   onKill: ->
     this.destroy()
 
-  connectToSSH: (box, keyPair, callback) ->
+  connectToSSH: (box, keyPair, sessionToken, callback) ->
     sshHelper = new SSHHelper 'action', box.host, box.port, keyPair.private_key
     sshHelper.writeKeyFile (err, sshArgs, deleteKeyFile) =>
       if err
         callback err
         return
       try
-        @pty = pty.spawn '/usr/bin/ssh', sshArgs
+        # Since SendEnv option for SSH is not enabled, going with this hack,
+        # of setting LC_* env variable. which are passed to the remote server.
+        @pty = pty.spawn "/usr/bin/ssh", sshArgs, { env: { LC_SESSION_TOKEN: sessionToken } }
       catch err
         deleteKeyFile ->
           callback err

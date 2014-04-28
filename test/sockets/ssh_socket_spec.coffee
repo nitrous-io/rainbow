@@ -34,7 +34,7 @@ describe 'SSHSocket', ->
       socket.fetchBoxAndKeyPair.restore()
 
     doAction = ->
-      socket.emit 'start', 111, ackSpy
+      socket.emit 'start', 111, 'some_session_token', ackSpy
 
     context 'when a pty session is already created', ->
       beforeEach ->
@@ -70,8 +70,8 @@ describe 'SSHSocket', ->
       afterEach ->
         socket.connectToSSH.restore()
 
-      it 'calls connectToSSH with the box and key pair', ->
-        expect(socket.connectToSSH).to.have.been.calledWith box, keyPair, sinon.match.func
+      it 'calls connectToSSH with the box, key pair and session token', ->
+        expect(socket.connectToSSH).to.have.been.calledWith box, keyPair, 'some_session_token', sinon.match.func
 
       context 'when connectToSSH fails', ->
         beforeEach ->
@@ -91,19 +91,21 @@ describe 'SSHSocket', ->
     error = cbSpy = null
     box = null
     keyPair = null
+    sessionToken = null
 
     beforeEach ->
       cbSpy = sinon.spy()
       box = new Box id: 123, host: 'foobar.actionbox.io', port: 2234
       keyPair = new KeyPair
       keyPair.__defineGetter__ 'private_key', -> 'some private key'
+      sessionToken = "some_session_token"
       sinon.stub SSHHelper.prototype, 'writeKeyFile'
 
     afterEach ->
       SSHHelper::writeKeyFile.restore()
 
     doAction = ->
-      socket.connectToSSH box, keyPair, cbSpy
+      socket.connectToSSH box, keyPair, sessionToken, cbSpy
 
     context 'when writing keypair to the temp file fails with error', ->
       beforeEach ->
@@ -146,9 +148,10 @@ describe 'SSHSocket', ->
           mockPty = new EventEmitter()
           sinon.stub socket, 'onPTYData'
           sinon.stub socket, 'onPTYClose'
-          sinon.stub pty, 'spawn', (cmd, args) ->
+          sinon.stub pty, 'spawn', (cmd, args, opts) ->
             expect(cmd).to.equal '/usr/bin/ssh'
             expect(args).to.deep.equal ['-sshargs']
+            expect(opts).to.deep.equal { env: { LC_SESSION_TOKEN: sessionToken } }
             mockPty
           doAction()
 

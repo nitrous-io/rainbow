@@ -6,4 +6,5 @@ SCRIPTPATH=$(dirname $SCRIPT)
 
 cd $SCRIPTPATH/.. && cp .env-example .env
 cd $SCRIPTPATH/../config && cp database-example.coffee database.coffee
+export $(cat .env)
 cd $SCRIPTPATH/.. && make test

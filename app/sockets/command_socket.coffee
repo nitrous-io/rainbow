@@ -51,6 +51,9 @@ module.exports = class CommandSocket extends RainbowSocket
       stderrFn: (data) =>
         [lineData, @errBuffer] = this.lineBuffer(data, @errBuffer)
         this.sendAs 'search', 'commandError', [tabId, lineData].join(IdDataDelimiter)
+      closeFn: (data) =>
+        this.sendAs 'search', 'commandComplete', [tabId, data].join(IdDataDelimiter)
+
     ack?()
 
   # ensures that output sent over websocket terminates with newline
@@ -73,7 +76,8 @@ module.exports = class CommandSocket extends RainbowSocket
   # the command for _streamCommand is an object with the following keys:
   # path - string, path of command
   # args - array, arguments to command
-  # stdoutFn, stderrFn - callbacks with (data) argument that run on 
+  # stdoutFn, stderrFn - callbacks with (data) argument that run on command output
+  # closeFn - callback with (exitcode) argument that runs on command completion
   _streamCommand: (namespace, command) ->
     @ssh.writeKeyFile (err, sshArgs, deleteKeyFile) =>
       if err
@@ -92,7 +96,8 @@ module.exports = class CommandSocket extends RainbowSocket
 
       commandProcess.on 'close', (code) =>
         deleteKeyFile()
-        this.sendAs namespace, 'commandComplete', code
+        if command.closeFn
+          command.closeFn(code)
 
       commandProcess.on 'error', ->
         deleteKeyFile()

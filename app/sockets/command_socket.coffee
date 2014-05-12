@@ -23,6 +23,9 @@ module.exports = class CommandSocket extends RainbowSocket
     this.on 'start',  _.bind(@onStart, this)
     this.on 'search', _.bind(@search,  this)
 
+    @outBuffer = ''
+    @errBuffer = ''
+
   destroy: ->
     @ssh = undefined
 
@@ -43,10 +46,23 @@ module.exports = class CommandSocket extends RainbowSocket
       path: searchBinPath,
       args: ["--group", "--color", "--search-files", term, searchRoot]
       stdoutFn: (data) =>
-        this.sendAs 'search', 'commandOutput', [tabId, data.toString()].join(IdDataDelimiter)
+        [lineData, @outBuffer] = this.lineBuffer(data, @outBuffer)
+        this.sendAs 'search', 'commandOutput', [tabId, lineData].join(IdDataDelimiter)
       stderrFn: (data) =>
-        this.sendAs 'search', 'commandError', [tabId, data.toString()].join(IdDataDelimiter)
+        [lineData, @errBuffer] = this.lineBuffer(data, @errBuffer)
+        this.sendAs 'search', 'commandError', [tabId, lineData].join(IdDataDelimiter)
     ack?()
+
+  # ensures that output sent over websocket terminates with newline
+  lineBuffer: (data, bufferVal) ->
+    lineData = bufferVal + data.toString()
+    if lineData.slice(-1) != "\n"
+      lastNewlinePos = lineData.lastIndexOf("\n")
+      bufferVal = lineData.slice(lastNewlinePos + 1)
+      lineData = lineData.slice(0, lastNewlinePos + 1)
+    else
+      bufferVal = ''
+    return [lineData, bufferVal]
 
   send: (event, args...) ->
     throw "Cannot use send in CommandSocket, use sendAs"

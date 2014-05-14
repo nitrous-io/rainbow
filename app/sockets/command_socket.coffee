@@ -20,14 +20,16 @@ optionsToArgs =
   ignoreCase: '--ignore-case'
   literal: '--literal'
 
-# user-facing errors will be handled client-side
-errorSlugs =
-  limit: 'LIMIT\n'
-
 module.exports = class CommandSocket extends RainbowSocket
   namespace: 'command'
 
   resultLimit: 500
+
+  # user-facing messages will be handled client-side
+  searchErrorSlugs:
+    limit: 'LIMIT\n'
+    pathNotFound: 'NOPATH\n'
+    badRegex: 'BADREGEX\n'
 
   initialize: ->
     this.on 'start',  _.bind(@onStart, this)
@@ -68,8 +70,7 @@ module.exports = class CommandSocket extends RainbowSocket
         return if lineData.trim() == ''
         this.sendAs 'search', 'commandOutput', [tabId, lineData].join(IdDataDelimiter)
       stderrFn: (data) =>
-        [lineData, @errBuffer[tabId]] = this.lineBuffer(data, @errBuffer[tabId])
-        this.sendAs 'search', 'commandError', [tabId, lineData].join(IdDataDelimiter)
+        this.sendAs 'search', 'commandError', [tabId, data].join(IdDataDelimiter)
       closeFn: (data) =>
         this.sendAs 'search', 'commandComplete', [tabId, data].join(IdDataDelimiter)
 
@@ -115,6 +116,8 @@ module.exports = class CommandSocket extends RainbowSocket
       @errBuffer[tabId] ||= ''
       @lineCount[tabId] ||= 0
 
+      errBuffer = @errBuffer[command.tabId] || ''
+
       commandProcess = childProcess.spawn '/usr/bin/ssh', sshArgs, { env: {} }
 
       commandProcess.stdout.on 'data', (data) =>
@@ -127,15 +130,32 @@ module.exports = class CommandSocket extends RainbowSocket
         else
           @lineCount[tabId] = updatedLineCount
 
-      commandProcess.stderr.on 'data', command.stderrFn
+      commandProcess.stderr.on 'data', (data) =>
+        @errBuffer[tabId] += data.toString()
 
       commandProcess.on 'close', (code) =>
         deleteKeyFile()
+        # note: ag returns exit code 0 on pathNotFound! So we cannot rely on
+        # exit code check -- we always parse stderr output
+        this._handleErrors @errBuffer[tabId], command.stderrFn
         if command.closeFn
           command.closeFn(code)
 
       commandProcess.on 'error', ->
         deleteKeyFile()
+
+  _handleErrors: (data, callback) ->
+    return if data.toString() == ''
+    sdata = data.toString().replace(/\n/g, "\\n")
+    errorSlug = switch
+      when sdata.match /Error stat\(\)ing/
+        this.searchErrorSlugs.pathNotFound
+      when sdata.match /pcre_compile failed/
+        this.searchErrorSlugs.badRegex
+      else
+        console.log "Unhandled ag error: #{sdata}"
+
+    callback(errorSlug) if errorSlug
 
   # Arguments
   # * data - from childProcess stdout

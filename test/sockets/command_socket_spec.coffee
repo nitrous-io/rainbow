@@ -113,3 +113,34 @@ describe 'CommandSocket', ->
       expect(data).to.eql ''
       expect(newCount).to.eql -1
 
+  describe '#_handleErrors', ->
+    cb = logger = null
+
+    beforeEach ->
+      cb = sinon.spy()
+      logger = sinon.stub(console, 'log')
+
+    afterEach ->
+      console.log.restore()
+
+    it 'detects path not found error', ->
+      sampleErr = "ERR: Error stat()ing: werkspice\nERR: Error opening directory werkspice: No such file or directory\n"
+      socket._handleErrors(sampleErr, cb)
+      expect(cb).to.have.been.calledWith(socket.searchErrorSlugs.pathNotFound)
+
+    it 'detects bad regex error', ->
+      sampleErr = "ERR:  pcre_compile failed at position 4. Error: missing )\n"
+      socket._handleErrors(sampleErr, cb)
+      expect(cb).to.have.been.calledWith(socket.searchErrorSlugs.badRegex)
+
+    it 'logs on unhandled error', ->
+      sampleErr = "ERR: Never happens\n"
+      socket._handleErrors(sampleErr, cb)
+      expect(logger).to.have.been.calledWithMatch(/Never happens/)
+      expect(cb).not.to.have.been.called
+
+    it 'logs single line on unhandled error', ->
+      sampleErr = "ERR: Spans\nmultiple\nlines\n"
+      socket._handleErrors(sampleErr, cb)
+      expect(logger).to.have.been.calledWith('Unhandled ag error: ERR: Spans\\nmultiple\\nlines\\n')
+      expect(cb).not.to.have.been.called

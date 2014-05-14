@@ -20,8 +20,14 @@ optionsToArgs =
   ignoreCase: '--ignore-case'
   literal: '--literal'
 
+# user-facing errors will be handled client-side
+errorSlugs =
+  limit: 'LIMIT\n'
+
 module.exports = class CommandSocket extends RainbowSocket
   namespace: 'command'
+
+  resultLimit: 500
 
   initialize: ->
     this.on 'start',  _.bind(@onStart, this)
@@ -29,6 +35,7 @@ module.exports = class CommandSocket extends RainbowSocket
 
     @outBuffer = ''
     @errBuffer = ''
+    @linesSeen = 0
 
   destroy: ->
     @ssh = undefined
@@ -57,6 +64,7 @@ module.exports = class CommandSocket extends RainbowSocket
       args: args
       stdoutFn: (data) =>
         [lineData, @outBuffer] = this.lineBuffer(data, @outBuffer)
+        return if lineData.trim() == ''
         this.sendAs 'search', 'commandOutput', [tabId, lineData].join(IdDataDelimiter)
       stderrFn: (data) =>
         [lineData, @errBuffer] = this.lineBuffer(data, @errBuffer)
@@ -104,7 +112,16 @@ module.exports = class CommandSocket extends RainbowSocket
 
       commandProcess = childProcess.spawn '/usr/bin/ssh', sshArgs, { env: {} }
 
-      commandProcess.stdout.on 'data', command.stdoutFn
+      commandProcess.stdout.on 'data', (data) =>
+        [data, updatedLineCount] = this._limitLines(data, lineCount)
+        command.stdoutFn(data)
+        if updatedLineCount == -1
+          commandProcess.kill() # will trigger 'close' event
+          lineCount = this.resultLimit
+          command.stderrFn(errorSlugs.limit)
+        else
+          lineCount = updatedLineCount
+
       commandProcess.stderr.on 'data', command.stderrFn
 
       commandProcess.on 'close', (code) =>
@@ -115,3 +132,18 @@ module.exports = class CommandSocket extends RainbowSocket
       commandProcess.on 'error', ->
         deleteKeyFile()
 
+  # Arguments
+  # * data - from childProcess stdout
+  # * currentCount - current number of lines seen
+  # returns
+  # * truncatedData - lines to send back
+  # * newCount - updated count of lines seen (-1 if exceeded)
+  _limitLines: (data, currentCount) ->
+    if currentCount == this.resultLimit
+      return ['', -1]
+    lines = data.toString().split("\n")
+    updatedLineCount = currentCount + lines.length - 1
+    if updatedLineCount > this.resultLimit
+      [lines.slice(0, this.resultLimit - currentCount).join("\n") + "\n", -1]
+    else
+      [data, updatedLineCount]

@@ -84,3 +84,32 @@ describe 'CommandSocket', ->
 
     it 'does not escape wildcards', ->
       expect(socket.shellEscape('*.p?')).to.eql '*.p?'
+
+  describe '#_limitLines', ->
+    beforeEach ->
+      socket.resultLimit = 3
+
+    it 'with no newlines', ->
+      [data, newCount] = socket._limitLines "line 1", 0
+      expect(data).to.eql 'line 1'
+      expect(newCount).to.eql 0
+
+    it 'with lines within limit', ->
+      [data, newCount] = socket._limitLines "line 1\n", 1
+      expect(data).to.eql 'line 1\n'
+      expect(newCount).to.eql 2
+
+      [data, newCount] = socket._limitLines "line 1\nline 2\n", 1
+      expect(data).to.eql 'line 1\nline 2\n'
+      expect(newCount).to.eql 3
+
+    it 'with lines exceeding limit', ->
+      [data, newCount] = socket._limitLines 'line 1\nline 2\nline 3\nline 4\n', 0
+      expect(data).to.eql 'line 1\nline 2\nline 3\n'
+      expect(newCount).to.eql -1
+
+    it 'with line count exactly at threshold', ->
+      [data, newCount] = socket._limitLines("line 1\n", 3)
+      expect(data).to.eql ''
+      expect(newCount).to.eql -1
+

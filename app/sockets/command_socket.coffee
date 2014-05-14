@@ -16,12 +16,16 @@ searchBinPath = "/usr/bin/ag"
 
 IdDataDelimiter = "!!\n"
 
+optionsToArgs =
+  ignoreCase: '--ignore-case'
+  literal: '--literal'
+
 module.exports = class CommandSocket extends RainbowSocket
   namespace: 'command'
 
   initialize: ->
     this.on 'start',  _.bind(@onStart, this)
-    this.on 'search', _.bind(@search,  this)
+    this.on 'search', _.bind(@onSearch,  this)
 
     @outBuffer = ''
     @errBuffer = ''
@@ -35,16 +39,20 @@ module.exports = class CommandSocket extends RainbowSocket
       @ssh = new SSHHelper 'action', box.host, box.port, keyPair.private_key
       ack?()
 
-  search: (tabId, term, searchRoot, ack) ->
-    console.log "Got term #{term}, search root #{searchRoot}, ack #{ack}"
-    # --search-files is an undocumented option -- it forces the grouping of
-    # files despite stdin being a pipe (default for childProcess.spawn)
-    #
-    # FIXME: we need to specify colors since we're matching on them so that if
-    # user has a local .agrc file we don't match on the wrong colors
+  onSearch: (tabId, term, searchRoot, options, ack) ->
+    args = [
+      '--ackmate' # for ease of parsing
+      '--group' # displays results with file headings
+      '--all-text' # search all text files
+    ]
+    _.each options.split(','), (option) ->
+      if arg = optionsToArgs[option]
+        args.push(arg)
+    args.push(term)
+    args.push(searchRoot)
     this._streamCommand 'search',
       path: searchBinPath,
-      args: ["--group", "--color", "--search-files", term, searchRoot]
+      args: args
       stdoutFn: (data) =>
         [lineData, @outBuffer] = this.lineBuffer(data, @outBuffer)
         this.sendAs 'search', 'commandOutput', [tabId, lineData].join(IdDataDelimiter)

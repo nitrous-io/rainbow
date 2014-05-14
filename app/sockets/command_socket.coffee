@@ -50,6 +50,8 @@ module.exports = class CommandSocket extends RainbowSocket
         args.push(arg)
     args.push(term)
     args.push(searchRoot)
+    args = _.map args, this.shellEscape
+
     this._streamCommand 'search',
       path: searchBinPath,
       args: args
@@ -63,6 +65,9 @@ module.exports = class CommandSocket extends RainbowSocket
         this.sendAs 'search', 'commandComplete', [tabId, data].join(IdDataDelimiter)
 
     ack?()
+
+  shellEscape: (arg) ->
+    arg.replace("\n", "\\n").replace(/([^A-Za-z0-9_\-.,:\/@\n*\?])/g, "\\$1")
 
   # ensures that output sent over websocket terminates with newline
   lineBuffer: (data, bufferVal) ->

@@ -65,3 +65,22 @@ describe 'CommandSocket', ->
         [line, buffer] = socket.lineBuffer("somefile.txt", buffer)
         expect(line).to.eq ''
         expect(buffer).to.eq '<existing>somefile.txt'
+
+  describe '#shellEscape', ->
+    it 'removes newlines', ->
+      expect(socket.shellEscape("new\nline")).to.eql 'new\\\\nline'
+
+    it 'escapes backticks', ->
+      expect(socket.shellEscape("evil`rm -rf`")).to.eql 'evil\\`rm\\ -rf\\`'
+
+    it 'escapes $(command)', ->
+      expect(socket.shellEscape("evil$(rm -rf)")).to.eql 'evil\\$\\(rm\\ -rf\\)'
+
+    it 'escapes backslashes for regex searches', ->
+      expect(socket.shellEscape("regex search\\w\\w")).to.eql 'regex\\ search\\\\w\\\\w'
+
+    it 'escapes semicolons', ->
+      expect(socket.shellEscape("test; rm -rf")).to.eql 'test\\;\\ rm\\ -rf'
+
+    it 'does not escape wildcards', ->
+      expect(socket.shellEscape('*.p?')).to.eql '*.p?'

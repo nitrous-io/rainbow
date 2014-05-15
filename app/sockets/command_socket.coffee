@@ -33,9 +33,9 @@ module.exports = class CommandSocket extends RainbowSocket
     this.on 'start',  _.bind(@onStart, this)
     this.on 'search', _.bind(@onSearch,  this)
 
-    @outBuffer = ''
-    @errBuffer = ''
-    @linesSeen = 0
+    @outBuffer = {}
+    @errBuffer = {}
+    @lineCount = {}
 
   destroy: ->
     @ssh = undefined
@@ -60,14 +60,15 @@ module.exports = class CommandSocket extends RainbowSocket
     args = _.map args, this.shellEscape
 
     this._streamCommand 'search',
-      path: searchBinPath,
+      tabId: tabId
+      path: searchBinPath
       args: args
       stdoutFn: (data) =>
-        [lineData, @outBuffer] = this.lineBuffer(data, @outBuffer)
+        [lineData, @outBuffer[tabId]] = this.lineBuffer(data, @outBuffer[tabId])
         return if lineData.trim() == ''
         this.sendAs 'search', 'commandOutput', [tabId, lineData].join(IdDataDelimiter)
       stderrFn: (data) =>
-        [lineData, @errBuffer] = this.lineBuffer(data, @errBuffer)
+        [lineData, @errBuffer[tabId]] = this.lineBuffer(data, @errBuffer[tabId])
         this.sendAs 'search', 'commandError', [tabId, lineData].join(IdDataDelimiter)
       closeFn: (data) =>
         this.sendAs 'search', 'commandComplete', [tabId, data].join(IdDataDelimiter)
@@ -79,7 +80,7 @@ module.exports = class CommandSocket extends RainbowSocket
 
   # ensures that output sent over websocket terminates with newline
   lineBuffer: (data, bufferVal) ->
-    lineData = bufferVal + data.toString()
+    lineData = (bufferVal || '') + data.toString()
     if lineData.slice(-1) != "\n"
       lastNewlinePos = lineData.lastIndexOf("\n")
       bufferVal = lineData.slice(lastNewlinePos + 1)
@@ -108,19 +109,23 @@ module.exports = class CommandSocket extends RainbowSocket
       sshArgs.push "LC_ALL=en_US.UTF-8"
       sshArgs.push "#{command.path} #{command.args.join(' ')}"
 
-      lineCount = 0
+
+      tabId = command.tabId
+
+      @errBuffer[tabId] ||= ''
+      @lineCount[tabId] ||= 0
 
       commandProcess = childProcess.spawn '/usr/bin/ssh', sshArgs, { env: {} }
 
       commandProcess.stdout.on 'data', (data) =>
-        [data, updatedLineCount] = this._limitLines(data, lineCount)
+        [data, updatedLineCount] = this._limitLines(data, @lineCount[tabId])
         command.stdoutFn(data)
         if updatedLineCount == -1
           commandProcess.kill() # will trigger 'close' event
-          lineCount = this.resultLimit
-          command.stderrFn(errorSlugs.limit)
+          @lineCount[tabId] = this.resultLimit
+          command.stderrFn(this.searchErrorSlugs.limit)
         else
-          lineCount = updatedLineCount
+          @lineCount[tabId] = updatedLineCount
 
       commandProcess.stderr.on 'data', command.stderrFn
 

@@ -3,10 +3,80 @@ app = require '../../app'
 SearchCommand = require '../../app/commands/search_command'
 
 describe 'SearchCommand', ->
-  command = null
+  command = sendSpy = null
 
   beforeEach ->
-    command = new SearchCommand 'term', 'location', 'options'
+    sendSpy = sinon.spy()
+    command = new SearchCommand 'term', 'location', 'options', sendSpy
+
+  describe '#commandArguments', ->
+    args = null
+
+    beforeEach ->
+      args = command.commandArguments()
+
+    it 'has defaults for ag', ->
+      expect(args).to.contain '--ackmate'
+      expect(args).to.contain '--group'
+      expect(args).to.contain '--all-text'
+
+    it 'has term and location', ->
+      expect(args.slice(-2)).to.deep.equal ['term', 'location']
+
+  describe '#_optionArguments', ->
+    it 'detects multiple options', ->
+      command.options = 'ignoreCase,literal'
+      expect(command._optionArguments()).to.eql ['--ignore-case', '--literal']
+
+    it 'detects literal option', ->
+      command.options = 'literal'
+      expect(command._optionArguments()).to.eql ['--literal']
+
+    it 'detects ignore-case option', ->
+      command.options = 'ignoreCase'
+      expect(command._optionArguments()).to.eql ['--ignore-case']
+
+    it 'ignores unsupported options', ->
+      command.options = 'removeAllFiles,destroyBox,literal'
+      expect(command._optionArguments()).to.eql ['--literal']
+
+  describe 'stdoutFn', ->
+    it 'sends newline-terminated data back', ->
+      command.stdoutFn(':workspace/README.md\n')
+      expect(sendSpy).to.be.calledWith('commandOutput', ':workspace/README.md\n')
+
+    context 'when lines exceed limit', ->
+      beforeEach ->
+        sinon.stub(command, '_limitLines').returns(['', -1])
+
+      it 'sends limit error', ->
+        command.stdoutFn(':workspace/README.md\n', kill: -> {})
+        expect(sendSpy).to.be.calledWith('commandError', command.errorSlugs.limit)
+
+      it 'kills child process', ->
+        cprocess = kill: -> {}
+        killSpy = sinon.spy(cprocess, 'kill')
+        command.stdoutFn(':workspace/README.md\n', cprocess)
+        expect(killSpy).to.be.calledWith()
+
+  describe 'stderrFn', ->
+    it 'appends to errBuffer', ->
+      expect(command.errBuffer).to.eql ''
+      command.stderrFn("Invalid path\n", {})
+      expect(command.errBuffer).to.eql 'Invalid path\n'
+      command.stderrFn("Malformed arguments\n", {})
+      expect(command.errBuffer).to.eql 'Invalid path\nMalformed arguments\n'
+
+  describe 'closeFn', ->
+    it 'calls _handleErrors with errBuffer', ->
+      command.errBuffer = "Error stat()ing"
+      handlerSpy = sinon.spy(command, '_handleErrors')
+      command.closeFn(0)
+      expect(handlerSpy).to.be.calledWith('Error stat()ing')
+
+    it 'sends commandComplete', ->
+      command.closeFn(0)
+      expect(sendSpy).to.be.calledWith('commandComplete', 0)
 
   describe '#_lineBuffer', ->
     context 'with empty buffer', ->

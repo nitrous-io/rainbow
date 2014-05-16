@@ -15,9 +15,9 @@ module.exports = class SearchCommand
   resultLimit: 500
 
   errorSlugs:
-    limit: 'LIMIT\n'
-    pathNotFound: 'NOPATH\n'
-    badRegex: 'BADREGEX\n'
+    limit: 'LIMIT'
+    pathNotFound: 'NOPATH'
+    badRegex: 'BADREGEX'
 
   # @term - search term
   # @location - search location, e.g. workspace or workspace/*.py
@@ -29,13 +29,13 @@ module.exports = class SearchCommand
     @lineCount = 0
     @stopStdout = false
 
-  commandToStream: ->
+  makeCommand: ->
     return (
       path: searchBinPath
       args: this.commandArguments()
-      stdoutFn: this.makeStdoutFn()
-      stderrFn: this.makeStderrFn()
-      closeFn: this.makeCloseFn()
+      stdoutFn: this.stdoutFn
+      stderrFn: this.stderrFn
+      closeFn: this.closeFn
     )
 
   commandArguments: ->
@@ -44,36 +44,39 @@ module.exports = class SearchCommand
       '--group' # displays results with file headings
       '--all-text' # search all text files
     ]
-    _.each @options.split(','), (option) ->
-      if arg = optionsToArgs[option]
-        args.push(arg)
+    options = this._optionArguments()
+    args = args.concat(options) if options.length > 0
     args.push(@term)
     args.push(@location)
     _.map args, this._shellEscape
 
-  makeStdoutFn: ->
-    return (data, cprocess) =>
-      return if @stopStdout
-      data = data.toString()
-      [data, updatedLineCount] = this._limitLines(data, @lineCount)
-      [data, @outBuffer] = this._lineBuffer(data, @outBuffer)
-      this.sendFn 'commandOutput', data
-      if updatedLineCount == -1
-        @stopStdout = true
-        this.sendFn 'commandError', this.errorSlugs.limit
-        cprocess.kill() # will trigger 'close' event
-      else
-        @lineCount = updatedLineCount
+  _optionArguments: ->
+    args = []
+    _.each @options.split(','), (option) ->
+      if arg = optionsToArgs[option]
+        args.push(arg)
+    args
 
-  makeStderrFn: ->
-    return (data, cprocess) =>
-      @errBuffer += data.toString()
+  stdoutFn: (data, cprocess) =>
+    return if @stopStdout
+    data = data.toString()
+    [data, updatedLineCount] = this._limitLines(data, @lineCount)
+    [data, @outBuffer] = this._lineBuffer(data, @outBuffer)
+    this.sendFn 'commandOutput', data
+    if updatedLineCount == -1
+      @stopStdout = true
+      this.sendFn 'commandError', this.errorSlugs.limit
+      cprocess.kill() # will trigger 'close' event
+    else
+      @lineCount = updatedLineCount
 
-  makeCloseFn: ->
-    return (data) =>
-      this._handleErrors @errBuffer, (errSlug) =>
-        this.sendFn 'commandError', errSlug
-      this.sendFn 'commandComplete', data
+  stderrFn: (data, cprocess) =>
+    @errBuffer += data.toString()
+
+  closeFn: (data) =>
+    this._handleErrors @errBuffer, (errSlug) =>
+      this.sendFn 'commandError', errSlug
+    this.sendFn 'commandComplete', data
 
   # ensures that output sent over websocket terminates with newline
   _lineBuffer: (data, bufferVal) ->

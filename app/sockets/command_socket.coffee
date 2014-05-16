@@ -33,7 +33,7 @@ module.exports = class CommandSocket extends RainbowSocket
     cmd = new SearchCommand term, searchRoot, options, (event, data) =>
       this.sendAs 'search', event, [tabId, data].join(SearchCommand.idDataDelimiter)
 
-    this._streamCommand 'search', cmd.commandToStream()
+    this._streamCommand 'search', cmd.makeCommand()
 
     ack?()
 

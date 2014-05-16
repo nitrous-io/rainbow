@@ -61,18 +61,40 @@ module.exports = class CommandSocket extends RainbowSocket
     args.push(searchRoot)
     args = _.map args, this.shellEscape
 
+    @errBuffer[tabId] ||= ''
+    @lineCount[tabId] ||= 0
+
+    cleanup = =>
+      delete(@outBuffer[tabId])
+      delete(@errBuffer[tabId])
+      delete(@lineCount[tabId])
+
+    sendSearch = (event, data) =>
+      this.sendAs 'search', event, [tabId, data].join(IdDataDelimiter)
+
     this._streamCommand 'search',
-      tabId: tabId
       path: searchBinPath
       args: args
-      stdoutFn: (data) =>
-        [lineData, @outBuffer[tabId]] = this.lineBuffer(data, @outBuffer[tabId])
-        return if lineData.trim() == ''
-        this.sendAs 'search', 'commandOutput', [tabId, lineData].join(IdDataDelimiter)
+      stdoutFn: (data, cprocess) =>
+        data = data.toString()
+        [data, updatedLineCount] = this._limitLines(data, @lineCount[tabId])
+        [data, @outBuffer[tabId]] = this.lineBuffer(data, @outBuffer[tabId])
+        sendSearch 'commandOutput', data
+        if updatedLineCount == -1
+          sendSearch 'commandError', this.searchErrorSlugs.limit
+          @lineCount[tabId] = this.resultLimit
+          cprocess.kill() # will trigger 'close' event
+        else
+          @lineCount[tabId] = updatedLineCount
       stderrFn: (data) =>
-        this.sendAs 'search', 'commandError', [tabId, data].join(IdDataDelimiter)
+        @errBuffer[tabId] += data.toString()
       closeFn: (data) =>
-        this.sendAs 'search', 'commandComplete', [tabId, data].join(IdDataDelimiter)
+        this._handleErrors @errBuffer[tabId], (errSlug) =>
+          sendSearch 'commandError', errSlug
+        sendSearch 'commandComplete', data
+        cleanup()
+      errorFn: =>
+        cleanup()
 
     ack?()
 
@@ -99,8 +121,9 @@ module.exports = class CommandSocket extends RainbowSocket
   # the command for _streamCommand is an object with the following keys:
   # path - string, path of command
   # args - array, arguments to command
-  # stdoutFn, stderrFn - callbacks with (data) argument that run on command output
+  # stdoutFn, stderrFn - callbacks with (data, process) arguments that run on command output
   # closeFn - callback with (exitcode) argument that runs on command completion
+  # errorFn - callback with no arguments that runs on errors
   _streamCommand: (namespace, command) ->
     @ssh.writeKeyFile (err, sshArgs, deleteKeyFile) =>
       if err
@@ -110,46 +133,25 @@ module.exports = class CommandSocket extends RainbowSocket
       sshArgs.push "LC_ALL=en_US.UTF-8"
       sshArgs.push "#{command.path} #{command.args.join(' ')}"
 
-
-      tabId = command.tabId
-
-      @errBuffer[tabId] ||= ''
-      @lineCount[tabId] ||= 0
-
-      errBuffer = @errBuffer[command.tabId] || ''
-
       commandProcess = childProcess.spawn '/usr/bin/ssh', sshArgs, { env: {} }
 
-      cleanup = =>
-        delete @outBuffer[tabId]
-        delete @errBuffer[tabId]
-        delete @lineCount[tabId]
-
       commandProcess.stdout.on 'data', (data) =>
-        [data, updatedLineCount] = this._limitLines(data, @lineCount[tabId])
-        command.stdoutFn(data)
-        if updatedLineCount == -1
-          commandProcess.kill() # will trigger 'close' event
-          @lineCount[tabId] = this.resultLimit
-          command.stderrFn(this.searchErrorSlugs.limit)
-        else
-          @lineCount[tabId] = updatedLineCount
+        if command.stdoutFn
+          command.stdoutFn(data, commandProcess)
 
       commandProcess.stderr.on 'data', (data) =>
-        @errBuffer[tabId] += data.toString()
+        if command.stderrFn
+          command.stderrFn(data, commandProcess)
 
       commandProcess.on 'close', (code) =>
-        deleteKeyFile()
-        # note: ag returns exit code 0 on pathNotFound! So we cannot rely on
-        # exit code check -- we always parse stderr output
-        this._handleErrors @errBuffer[tabId], command.stderrFn
         if command.closeFn
           command.closeFn(code)
-        cleanup()
+        deleteKeyFile()
 
       commandProcess.on 'error', ->
+        if command.errorFn
+          command.errorFn()
         deleteKeyFile()
-        cleanup()
 
   _handleErrors: (data, callback) ->
     return if data.toString() == ''

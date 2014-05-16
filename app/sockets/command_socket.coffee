@@ -120,6 +120,11 @@ module.exports = class CommandSocket extends RainbowSocket
 
       commandProcess = childProcess.spawn '/usr/bin/ssh', sshArgs, { env: {} }
 
+      cleanup = =>
+        delete @outBuffer[tabId]
+        delete @errBuffer[tabId]
+        delete @lineCount[tabId]
+
       commandProcess.stdout.on 'data', (data) =>
         [data, updatedLineCount] = this._limitLines(data, @lineCount[tabId])
         command.stdoutFn(data)
@@ -140,9 +145,11 @@ module.exports = class CommandSocket extends RainbowSocket
         this._handleErrors @errBuffer[tabId], command.stderrFn
         if command.closeFn
           command.closeFn(code)
+        cleanup()
 
       commandProcess.on 'error', ->
         deleteKeyFile()
+        cleanup()
 
   _handleErrors: (data, callback) ->
     return if data.toString() == ''

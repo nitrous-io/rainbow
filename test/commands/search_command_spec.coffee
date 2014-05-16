@@ -40,6 +40,11 @@ describe 'SearchCommand', ->
       command.options = 'removeAllFiles,destroyBox,literal'
       expect(command._optionArguments()).to.eql ['--literal']
 
+    it 'removes ignore-case option if term has multibyte characters', ->
+      command.term = 'ファイル'
+      command.options = 'ignoreCase'
+      expect(command._optionArguments()).to.eql []
+
   describe 'stdoutFn', ->
     it 'sends newline-terminated data back', ->
       command.stdoutFn(':workspace/README.md\n')

@@ -55,6 +55,12 @@ module.exports = class SearchCommand
     _.each @options.split(','), (option) ->
       if arg = optionsToArgs[option]
         args.push(arg)
+
+    # ag has a bug where multibyte searches will have zero results if
+    # --ignore-case is an option
+    # We discard the ignore case option if the term contains a multibyte
+    # character (which means ag will default to smart case)
+    args = _.without(args, optionsToArgs.ignoreCase) if /[^\x00-\x7F]/.test(@term)
     args
 
   stdoutFn: (data, cprocess) =>

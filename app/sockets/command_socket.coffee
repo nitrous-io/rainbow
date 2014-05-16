@@ -11,33 +11,14 @@ app = require '../../app'
 
 childProcess = require 'child_process'
 
-homePath = '/home/action'
-searchBinPath = "/usr/bin/ag"
-
-IdDataDelimiter = "!!\n"
-
-optionsToArgs =
-  ignoreCase: '--ignore-case'
-  literal: '--literal'
+SearchCommand = require '../../app/commands/search_command'
 
 module.exports = class CommandSocket extends RainbowSocket
   namespace: 'command'
 
-  resultLimit: 500
-
-  # user-facing messages will be handled client-side
-  searchErrorSlugs:
-    limit: 'LIMIT\n'
-    pathNotFound: 'NOPATH\n'
-    badRegex: 'BADREGEX\n'
-
   initialize: ->
     this.on 'start',  _.bind(@onStart, this)
     this.on 'search', _.bind(@onSearch,  this)
-
-    @outBuffer = {}
-    @errBuffer = {}
-    @lineCount = {}
 
   destroy: ->
     @ssh = undefined
@@ -49,68 +30,12 @@ module.exports = class CommandSocket extends RainbowSocket
       ack?()
 
   onSearch: (tabId, term, searchRoot, options, ack) ->
-    args = [
-      '--ackmate' # for ease of parsing
-      '--group' # displays results with file headings
-      '--all-text' # search all text files
-    ]
-    _.each options.split(','), (option) ->
-      if arg = optionsToArgs[option]
-        args.push(arg)
-    args.push(term)
-    args.push(searchRoot)
-    args = _.map args, this.shellEscape
+    cmd = new SearchCommand term, searchRoot, options, (event, data) =>
+      this.sendAs 'search', event, [tabId, data].join(SearchCommand.idDataDelimiter)
 
-    @errBuffer[tabId] ||= ''
-    @lineCount[tabId] ||= 0
-
-    cleanup = =>
-      delete(@outBuffer[tabId])
-      delete(@errBuffer[tabId])
-      delete(@lineCount[tabId])
-
-    sendSearch = (event, data) =>
-      this.sendAs 'search', event, [tabId, data].join(IdDataDelimiter)
-
-    this._streamCommand 'search',
-      path: searchBinPath
-      args: args
-      stdoutFn: (data, cprocess) =>
-        data = data.toString()
-        [data, updatedLineCount] = this._limitLines(data, @lineCount[tabId])
-        [data, @outBuffer[tabId]] = this.lineBuffer(data, @outBuffer[tabId])
-        sendSearch 'commandOutput', data
-        if updatedLineCount == -1
-          sendSearch 'commandError', this.searchErrorSlugs.limit
-          @lineCount[tabId] = this.resultLimit
-          cprocess.kill() # will trigger 'close' event
-        else
-          @lineCount[tabId] = updatedLineCount
-      stderrFn: (data) =>
-        @errBuffer[tabId] += data.toString()
-      closeFn: (data) =>
-        this._handleErrors @errBuffer[tabId], (errSlug) =>
-          sendSearch 'commandError', errSlug
-        sendSearch 'commandComplete', data
-        cleanup()
-      errorFn: =>
-        cleanup()
+    this._streamCommand 'search', cmd.commandToStream()
 
     ack?()
-
-  shellEscape: (arg) ->
-    arg.replace("\n", "\\n").replace(/([^A-Za-z0-9_\-.,:\/@\n*\?])/g, "\\$1")
-
-  # ensures that output sent over websocket terminates with newline
-  lineBuffer: (data, bufferVal) ->
-    lineData = (bufferVal || '') + data.toString()
-    if lineData.slice(-1) != "\n"
-      lastNewlinePos = lineData.lastIndexOf("\n")
-      bufferVal = lineData.slice(lastNewlinePos + 1)
-      lineData = lineData.slice(0, lastNewlinePos + 1)
-    else
-      bufferVal = ''
-    return [lineData, bufferVal]
 
   send: (event, args...) ->
     throw "Cannot use send in CommandSocket, use sendAs"
@@ -152,32 +77,3 @@ module.exports = class CommandSocket extends RainbowSocket
         if command.errorFn
           command.errorFn()
         deleteKeyFile()
-
-  _handleErrors: (data, callback) ->
-    return if data.toString() == ''
-    sdata = data.toString().replace(/\n/g, "\\n")
-    errorSlug = switch
-      when sdata.match /Error stat\(\)ing/
-        this.searchErrorSlugs.pathNotFound
-      when sdata.match /pcre_compile failed/
-        this.searchErrorSlugs.badRegex
-      else
-        console.log "Unhandled ag error: #{sdata}"
-
-    callback(errorSlug) if errorSlug
-
-  # Arguments
-  # * data - from childProcess stdout
-  # * currentCount - current number of lines seen
-  # returns
-  # * truncatedData - lines to send back
-  # * newCount - updated count of lines seen (-1 if exceeded)
-  _limitLines: (data, currentCount) ->
-    if currentCount == this.resultLimit
-      return ['', -1]
-    lines = data.toString().split("\n")
-    updatedLineCount = currentCount + lines.length - 1
-    if updatedLineCount > this.resultLimit
-      [lines.slice(0, this.resultLimit - currentCount).join("\n") + "\n", -1]
-    else
-      [data, updatedLineCount]

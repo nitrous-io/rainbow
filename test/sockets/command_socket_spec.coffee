@@ -68,12 +68,12 @@ describe 'CommandSocket', ->
 
       it 'calls stdoutFn with stdout data and childprocess', ->
         sinon.spy(command, 'stdoutFn')
-        mockStdout.emit 'data', '5 results found'
+        mockStdout.emit 'data', { toString: -> '5 results found' }
         expect(command.stdoutFn).to.be.calledWith '5 results found', mockSpawn
 
       it 'calls stderrFn with stderr data and childprocess', ->
         sinon.spy(command, 'stderrFn')
-        mockStderr.emit 'data', 'ERR: bad regex'
+        mockStderr.emit 'data', { toString: -> 'ERR: bad regex' }
         expect(command.stderrFn).to.be.calledWith 'ERR: bad regex', mockSpawn
 
       context 'when stream is closed', ->

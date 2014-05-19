@@ -65,7 +65,6 @@ module.exports = class SearchCommand
 
   stdoutFn: (data, cprocess) =>
     return if @stopStdout
-    data = data.toString()
     [data, updatedLineCount] = this._limitLines(data, @lineCount)
     [data, @outBuffer] = this._lineBuffer(data, @outBuffer)
     this.sendFn 'commandOutput', data
@@ -77,7 +76,7 @@ module.exports = class SearchCommand
       @lineCount = updatedLineCount
 
   stderrFn: (data, cprocess) =>
-    @errBuffer += data.toString()
+    @errBuffer += data
 
   closeFn: (data) =>
     this._handleErrors @errBuffer, (errSlug) =>
@@ -86,7 +85,7 @@ module.exports = class SearchCommand
 
   # ensures that output sent over websocket terminates with newline
   _lineBuffer: (data, bufferVal) ->
-    lineData = (bufferVal || '') + data.toString()
+    lineData = (bufferVal || '') + data
     if lineData.slice(-1) != "\n"
       lastNewlinePos = lineData.lastIndexOf("\n")
       bufferVal = lineData.slice(lastNewlinePos + 1)
@@ -99,15 +98,15 @@ module.exports = class SearchCommand
     arg.replace("\n", "\\n").replace(/([^A-Za-z0-9_\-.,:\/@\n*\?])/g, "\\$1")
 
   _handleErrors: (data, callback) ->
-    return if data.toString() == ''
-    sdata = data.toString().replace(/\n/g, "\\n")
+    return if data == ''
+    data = data.replace(/\n/g, "\\n")
     errorSlug = switch
-      when sdata.match /Error stat\(\)ing/
+      when data.match /Error stat\(\)ing/
         this.errorSlugs.pathNotFound
-      when sdata.match /pcre_compile failed/
+      when data.match /pcre_compile failed/
         this.errorSlugs.badRegex
       else
-        console.log "Unhandled ag error: #{sdata}"
+        console.log "Unhandled ag error: #{data}"
 
     callback(errorSlug) if errorSlug
 
@@ -120,7 +119,7 @@ module.exports = class SearchCommand
   _limitLines: (data, currentCount) ->
     if currentCount == this.resultLimit
       return ['', -1]
-    lines = data.toString().split("\n")
+    lines = data.split("\n")
     updatedLineCount = currentCount + lines.length - 1
     if updatedLineCount > this.resultLimit
       [lines.slice(0, this.resultLimit - currentCount).join("\n") + "\n", -1]

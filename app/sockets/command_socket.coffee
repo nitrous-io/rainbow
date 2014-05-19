@@ -60,20 +60,16 @@ module.exports = class CommandSocket extends RainbowSocket
 
       commandProcess = childProcess.spawn '/usr/bin/ssh', sshArgs, { env: {} }
 
-      commandProcess.stdout.on 'data', (data) =>
-        if command.stdoutFn
-          command.stdoutFn(data, commandProcess)
+      commandProcess.stdout.on 'data', (data) ->
+        command.stdoutFn?(data.toString(), commandProcess)
 
-      commandProcess.stderr.on 'data', (data) =>
-        if command.stderrFn
-          command.stderrFn(data, commandProcess)
+      commandProcess.stderr.on 'data', (data) ->
+        command.stderrFn?(data.toString(), commandProcess)
 
-      commandProcess.on 'close', (code) =>
-        if command.closeFn
-          command.closeFn(code)
+      commandProcess.on 'close', (code) ->
+        command.closeFn?(code)
         deleteKeyFile()
 
       commandProcess.on 'error', ->
-        if command.errorFn
-          command.errorFn()
+        command.errorFn?()
         deleteKeyFile()

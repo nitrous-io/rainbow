@@ -12,6 +12,7 @@ app = require '../../app'
 childProcess = require 'child_process'
 
 SearchCommand = require '../../app/commands/search_command'
+FileFindCommand = require '../../app/commands/file_find_command'
 
 module.exports = class CommandSocket extends RainbowSocket
   namespace: 'command'
@@ -19,6 +20,7 @@ module.exports = class CommandSocket extends RainbowSocket
   initialize: ->
     this.on 'start',  _.bind(@onStart, this)
     this.on 'search', _.bind(@onSearch,  this)
+    this.on 'filefind', _.bind(@onFileFind,  this)
 
   destroy: ->
     @ssh = undefined
@@ -34,6 +36,15 @@ module.exports = class CommandSocket extends RainbowSocket
       this.sendAs 'search', event, [tabId, data].join(SearchCommand.idDataDelimiter)
 
     this._streamCommand 'search', cmd.makeCommand()
+
+    ack?()
+
+  onFileFind: (term, location, ack) ->
+    cmd = new FileFindCommand term, location, (event, data) =>
+      id = [term, location].join(FileFindCommand.searchKeyDelimiter)
+      this.sendAs 'filefind', event, [id, data].join(FileFindCommand.idDataDelimiter)
+
+    this._streamCommand 'filefind', cmd.makeCommand()
 
     ack?()
 
@@ -56,7 +67,7 @@ module.exports = class CommandSocket extends RainbowSocket
 
       sshArgs.push "--"
       sshArgs.push "LC_ALL=en_US.UTF-8"
-      sshArgs.push "#{command.path} #{command.args.join(' ')}"
+      sshArgs.push command.sshCommand
 
       commandProcess = childProcess.spawn '/usr/bin/ssh', sshArgs, { env: {} }
 

@@ -17,8 +17,7 @@ module.exports = class BaseCommand
 
   makeCommand: ->
     return (
-      path: this.commandPath()
-      args: this.commandArguments()
+      sshCommand: [this.commandPath()].concat(this.commandArguments()).join(' ')
       stdoutFn: this.stdoutFn
       stderrFn: this.stderrFn
       closeFn: this.closeFn

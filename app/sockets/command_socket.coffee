@@ -14,6 +14,15 @@ childProcess = require 'child_process'
 SearchCommand = require '../../app/commands/search_command'
 FileFindCommand = require '../../app/commands/file_find_command'
 
+# The ControlPath option of ssh is set to this value, which is the file used by
+# ssh to persist the connection.
+#   %r will be replaced by remote user name
+#   %h will be replaced by target host name
+#   %p will be replaced by destination port
+# This way each unique connection has its own file
+# `man 5 ssh_config` for more details
+controlPath = '/tmp/sshconn-%r-%h-%p'
+
 module.exports = class CommandSocket extends RainbowSocket
   namespace: 'command'
 
@@ -23,7 +32,27 @@ module.exports = class CommandSocket extends RainbowSocket
     this.on 'filefind', _.bind(@onFileFind,  this)
 
   destroy: ->
-    @ssh = undefined
+    # if the socket is set up but no commands are ever issued,
+    # there won't be an ssh connection to terminate
+    if !@sshConnected
+      @ssh = undefined
+      return
+
+    @ssh.writeKeyFile (err, sshArgs, deleteKeyFile) =>
+      if err
+        return
+
+      sshArgs = this._addSshOptions sshArgs, [
+        "-o ControlPath=#{controlPath}"
+        '-O exit' # instruct the ControlMaster to exit
+      ]
+
+      childProcess.exec "/usr/bin/ssh #{sshArgs.join(' ')}", (err) ->
+        if err != null
+          console.log("ERR: Error exiting ssh connection: #{err} #{sshArgs}")
+        deleteKeyFile()
+
+      @ssh = undefined
 
   onStart: (boxId, ack) ->
     this.fetchBoxAndKeyPair boxId, (err, box, keyPair) =>
@@ -54,17 +83,23 @@ module.exports = class CommandSocket extends RainbowSocket
   sendAs: (namespace, event, args...) ->
     @connection.send [namespace, event, args]
 
-  # the command for _streamCommand is an object with the following keys:
-  # path - string, path of command
-  # args - array, arguments to command
-  # stdoutFn, stderrFn - callbacks with (data, process) arguments that run on command output
-  # closeFn - callback with (exitcode) argument that runs on command completion
-  # errorFn - callback with no arguments that runs on errors
+  # the command for _streamCommand is a child of BaseCommand
   _streamCommand: (namespace, command) ->
     @ssh.writeKeyFile (err, sshArgs, deleteKeyFile) =>
       if err
         return
 
+      @sshConnected = true
+
+      sshArgs = this._addSshOptions sshArgs, [
+        # ControlMaster=auto : try to use a master connection, or create a
+        # new one if it doesn't already exist
+        # ControlPersist=yes : keep master connection around indefinitely until
+        # issued ssh command with `-O exit`
+        "-o ControlPath=#{controlPath}"
+        '-o ControlMaster=auto'
+        '-o ControlPersist=yes'
+      ]
       sshArgs.push "--"
       sshArgs.push "LC_ALL=en_US.UTF-8"
       sshArgs.push command.sshCommand
@@ -84,3 +119,8 @@ module.exports = class CommandSocket extends RainbowSocket
       commandProcess.on 'error', ->
         command.errorFn?()
         deleteKeyFile()
+
+  _addSshOptions: (sshArgs, options) ->
+    # last element of sshArgs from writeKeyFile callback is user@host
+    sshArgs.slice(0, -1).concat(options).concat(sshArgs.slice(-1))
+

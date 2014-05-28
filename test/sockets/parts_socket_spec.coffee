@@ -84,111 +84,59 @@ describe 'PartsSocket', ->
       socket._runPartsCommand 'list', cbSpy
       expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts list", { timeout: 60000 }, cbSpy
 
-  describe 'event: list', ->
+  describe 'event: listAll', ->
     ackSpy = null
+    execCommandStub = null
 
     beforeEach ->
-      cbSpy = sinon.spy()
-      sinon.stub socket, '_runPartsCommand'
+      ackSpy = sinon.spy()
+      execCommandStub = sinon.stub()
+      socket.ssh = { execCommand: execCommandStub }
 
     afterEach ->
-      socket._runPartsCommand.restore()
+      socket.partsPath = null
+      socket.ssh = null
 
-    it 'calls _runPartsCommand with list command', ->
-      socket.emit 'list', ackSpy
-      expect(socket._runPartsCommand).to.have.been.calledWith "list"
+    it 'calls execCommand with combined command', ->
+      socket.emit 'listAll', ackSpy
+      expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts search --json && /home/action/.parts/autoparts/bin/parts list --json", sinon.match.func
 
-    context 'when _runPartsCommand succeeds', ->
-      context 'when no package is installed', ->
-        beforeEach ->
-          stdout = "parts: no installed package found\n"
-          socket._runPartsCommand.callsArgWith 1, null, stdout
-
-        it 'returns an empty array', (done) ->
-          socket.emit 'list', (err, output) ->
-            expect(err).to.be.null
-            expect(output).to.deep.equal []
-            done()
-
-      context 'when packages are installed', ->
-        beforeEach ->
+    context 'when execCommand succeeds', ->
+      context 'when returned output is valid JSON', ->
+        it 'returns an array of packages with installed, installed_version properties set', (done) ->
           stdout = '''
-            lua (5.2.2)
-            rust (0.8)
-
+            [{"name":"lua","version":"5.2.2","category":"programming_languages","description":"Lua: A powerful, fast, lightweight, embeddable scripting language"},{"name":"freepascal","version":"2.6.2","category":"programming_languages","description":"Free Pascal: An open source Pascal compiler for Pascal and Object Pascal"},{"name":"meteor","version":"0.6.5.1","category":"web_development","description":"A real-time web development platform"}]
+            [{"name":"lua","versions":["5.2.2"]},{"name":"freepascal","versions":["2.5.4"]}]
           '''
-          socket._runPartsCommand.callsArgWith 1, null, stdout
-
-        it 'returns an array of installed packages', (done) ->
-          socket.emit 'list', (err, output) ->
+          execCommandStub.callsArgWith 1, null, stdout
+          socket.emit 'listAll', (err, output) ->
             expect(err).to.be.null
             expect(output).to.deep.equal [
-              { name: 'lua', version: '5.2.2' }
-              { name: 'rust', version: '0.8' }
+              { name: 'lua', version: '5.2.2', category: 'programming_languages', description: 'Lua: A powerful, fast, lightweight, embeddable scripting language', installed: true, installed_version: '5.2.2' }
+              { name: 'freepascal', version: '2.6.2', category: 'programming_languages', description: 'Free Pascal: An open source Pascal compiler for Pascal and Object Pascal', installed: true, installed_version: '2.5.4' }
+              { name: 'meteor', version: '0.6.5.1', category: 'web_development', description: 'A real-time web development platform', installed: false, installed_version: null }
             ]
             done()
 
-    context 'when _runPartsCommand fails', ->
+      context 'when returned output is not valid JSON', ->
+        it 'returns an empty array', (done) ->
+          stdout = '''
+            [{"name
+          '''
+          execCommandStub.callsArgWith 1, null, stdout
+          socket.emit 'listAll', (err, output) ->
+            expect(err).to.be.null
+            expect(output).to.deep.equal [
+            ]
+            done()
+
+    context 'when execCommand fails', ->
       context 'with some error', ->
         beforeEach ->
-          socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
+          execCommandStub.callsArgWith 1, new Error('some error'), null
 
         it 'returns an error', (done) ->
-          socket.emit 'list', (err, output) ->
-            expect(err).not.to.be.null
-            expect(output).to.be.null
-            done()
-
-  describe 'event: search', ->
-    ackSpy = null
-
-    beforeEach ->
-      cbSpy = sinon.spy()
-      sinon.stub socket, '_runPartsCommand'
-
-    afterEach ->
-      socket._runPartsCommand.restore()
-
-    it 'calls _runPartsCommand with search command', ->
-      socket.emit 'search', 'part', ackSpy
-      expect(socket._runPartsCommand).to.have.been.calledWith "search 'part'"
-
-    context 'when _runPartsCommand succeeds', ->
-      context 'when matching packages are found', ->
-        beforeEach ->
-          stdout = '''
-            lua (5.2.2)   Lua: A powerful, fast, lightweight, embeddable scripting language
-            freepascal (2.6.2) Free Pascal: An open source Pascal compiler for Pascal and Object Pascal
-
-          '''
-          socket._runPartsCommand.callsArgWith 1, null, stdout
-
-        it 'returns an array of matching packages', (done) ->
-          socket.emit 'search', 'part', (err, output) ->
-            expect(err).to.be.null
-            expect(output).to.deep.equal [
-              { name: 'lua', version: '5.2.2', description: 'Lua: A powerful, fast, lightweight, embeddable scripting language' }
-              { name: 'freepascal', version: '2.6.2', description: 'Free Pascal: An open source Pascal compiler for Pascal and Object Pascal' }
-            ]
-            done()
-
-    context 'when _runPartsCommand fails', ->
-      context 'with no packages found', ->
-        beforeEach ->
-          socket._runPartsCommand.callsArgWith 1, new Error('Command failed: parts: no package found for "hello"'), null
-
-        it 'returns an error', (done) ->
-          socket.emit 'search', 'hello', (err, output) ->
-            expect(err).not.to.be.null
-            expect(output).to.be.null
-            done()
-
-      context 'some other error', ->
-        beforeEach ->
-          socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
-
-        it 'returns an error', (done) ->
-          socket.emit 'search', 'part', (err, output) ->
+          socket.emit 'listAll', (err, output) ->
             expect(err).not.to.be.null
             expect(output).to.be.null
             done()
@@ -206,20 +154,18 @@ describe 'PartsSocket', ->
     context 'when a term is given', ->
       it 'calls _runPartsCommand with status and given term', ->
         socket.emit 'status', 'hello', ackSpy
-        expect(socket._runPartsCommand).to.have.been.calledWith "status 'hello'"
+        expect(socket._runPartsCommand).to.have.been.calledWith "status 'hello' --json"
 
     context 'when a term is not given', ->
       it 'calls _runPartsCommand only with status', ->
         socket.emit 'status', null, ackSpy
-        expect(socket._runPartsCommand).to.have.been.calledWith "status "
+        expect(socket._runPartsCommand).to.have.been.calledWith "status  --json"
 
     context 'when _runPartsCommand succeeds', ->
       context 'when matching packages are found', ->
         beforeEach ->
           stdout = '''
-            memcached   RUNNING
-            mongodb     STOPPED
-
+            [{"name":"memcached","status":"running"},{"name":"mongodb","status":"stopped"}]
           '''
           socket._runPartsCommand.callsArgWith 1, null, stdout
 
@@ -249,57 +195,6 @@ describe 'PartsSocket', ->
 
         it 'returns an error', (done) ->
           socket.emit 'status', 'hello', (err, output) ->
-            expect(err).not.to.be.null
-            expect(output).to.be.null
-            done()
-
-  describe 'event: listAll', ->
-    ackSpy = null
-    execCommandStub = null
-
-    beforeEach ->
-      ackSpy = sinon.spy()
-      execCommandStub = sinon.stub()
-      socket.ssh = { execCommand: execCommandStub }
-
-    afterEach ->
-      socket.partsPath = null
-      socket.ssh = null
-
-    it 'calls execCommand with combined command', ->
-      socket.emit 'listAll', ackSpy
-      expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts search && echo '------installedParts------' && /home/action/.parts/autoparts/bin/parts list", sinon.match.func
-
-    context 'when execCommand succeeds', ->
-      beforeEach ->
-        stdout = '''
-          lua (5.2.2)        Lua: A powerful, fast, lightweight, embeddable scripting language
-          freepascal (2.6.2) Free Pascal: An open source Pascal compiler for Pascal and Object Pascal
-          meteor (0.6.5.1)   A real-time web development platform
-          ------installedParts------
-          lua (5.2.2)
-          freepascal (2.5.4)
-
-        '''
-        execCommandStub.callsArgWith 1, null, stdout
-
-      it 'returns an array of packages with installed and upgradable properties correctly set', (done) ->
-        socket.emit 'listAll', (err, output) ->
-          expect(err).to.be.null
-          expect(output).to.deep.equal [
-            { name: 'lua', version: '5.2.2', description: 'Lua: A powerful, fast, lightweight, embeddable scripting language', installed: true, installed_version: '5.2.2' }
-            { name: 'freepascal', version: '2.6.2', description: 'Free Pascal: An open source Pascal compiler for Pascal and Object Pascal', installed: true, installed_version: '2.5.4' }
-            { name: 'meteor', version: '0.6.5.1', description: 'A real-time web development platform', installed: false, installed_version: null }
-          ]
-          done()
-
-    context 'when execCommand fails', ->
-      context 'with some error', ->
-        beforeEach ->
-          execCommandStub.callsArgWith 1, new Error('some error'), null
-
-        it 'returns an error', (done) ->
-          socket.emit 'listAll', (err, output) ->
             expect(err).not.to.be.null
             expect(output).to.be.null
             done()

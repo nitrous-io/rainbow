@@ -10,41 +10,12 @@ childProcess = require 'child_process'
 homePath = '/home/action'
 partsPath = "#{homePath}/.parts/autoparts/bin/parts"
 
-listItemRegex = ///
-  ^             # start of line
-  (.+)          # part name
-  \s+           # followed by some spaces
-  \(([^(]+)\)   # version inside brackets
-  $             # end of line
-///
-
-searchItemRegex = ///
-  ^             # start of line
-  (.+)          # part name
-  \s+           # followed by some spaces
-  \(([^(]+)\)   # version inside brackets
-  \s+           # followed by some spaces
-  (.+)          # description
-  $             # end of line
-///
-
-
-statusItemRegex = ///
-  ^             # start of line
-  ([\S]*)       # part name
-  \s*           # followed by some spaces
-  ([\S]*)       # status (which is a single word without spaces)
-  $             # end of line
-///
-
 module.exports = class PartsSocket extends RainbowSocket
   namespace: 'parts'
 
   initialize: ->
     this.on 'start',      _.bind(@onStart,     this)
-    this.on 'list',       _.bind(@onList,      this)
     this.on 'listAll',    _.bind(@onListAll,   this)
-    this.on 'search',     _.bind(@onSearch,    this)
     this.on 'status',     _.bind(@onStatus,    this)
 
     # following commands are handled with a common streaming handler.
@@ -62,35 +33,33 @@ module.exports = class PartsSocket extends RainbowSocket
       @ssh = new SSHHelper 'action', box.host, box.port, keyPair.private_key
       ack?()
 
-  onList: (ack) ->
-    this._runPartsCommand "list", (err, stdout, stderr) ->
+  onListAll: (ack) ->
+    command = "#{partsPath} search --json && #{partsPath} list --json"
+    @ssh.execCommand command, (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
-      if stdout.match /parts: no installed package found/
-        return ack? null, []
-      lines = stdout.split "\n"
-      lines.pop()
-      parts = []
-      for line in lines
-        if match = line.match listItemRegex
-          name = match[1]
-          version = match[2]
-          parts.push { name: name, version: version }
-      return ack? null, parts
 
-  onSearch: (term, ack) ->
-    this._runPartsCommand "search #{stringHelper.escape term}", (err, stdout, stderr) ->
-      if err
-        return ack? err.toString(), null
       lines = stdout.split "\n"
-      lines.pop()
-      parts = []
-      for line in lines
-        if match = line.match searchItemRegex
-          name = match[1]
-          version = match[2]
-          description = match[3]
-          parts.push { name: name, version: version, description: description }
+
+      try
+        parts = JSON.parse(lines[0])
+        installed = JSON.parse(lines[1])
+      catch err
+        console.log("ERR: Invalid JSON - #{err}")
+        parts = []
+        installed = []
+
+      _.each parts, (part) ->
+        _.extend part, { installed: false, installed_version: null }
+
+      _.each installed, (installedPart) ->
+        matchingPart = _.find(parts, (currentPart) ->
+          currentPart.name == installedPart.name
+        )
+
+        return if !matchingPart
+        _.extend matchingPart, { installed: true, installed_version: installedPart.versions[0] }
+
       return ack? null, parts
 
   onStatus: (term, ack) ->
@@ -99,53 +68,15 @@ module.exports = class PartsSocket extends RainbowSocket
     else
       escapedTerm = ''
 
-    this._runPartsCommand "status #{escapedTerm}", (err, stdout, stderr) ->
-      if err
-        return ack? err.toString(), null
-      lines = stdout.split "\n"
-      lines.pop()
-      parts = []
-      for line in lines
-        if match = line.match statusItemRegex
-          name = match[1]
-          status = match[2].toLowerCase()
-          parts.push { name: name, status: status }
-      return ack? null, parts
-
-  onListAll: (ack) ->
-    separator = '------installedParts------'
-    command = "#{partsPath} search && echo '#{separator}' && #{partsPath} list"
-    @ssh.execCommand command, (err, stdout, stderr) ->
+    this._runPartsCommand "status #{escapedTerm} --json", (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
 
-      lines = stdout.split "\n"
-      lines.pop()
-      parts = []
-      installedList = false
-      for line in lines
-        # installed packages list
-        # starts after the separator.
-        if line == separator
-          installedList = true
-
-        unless installedList
-          if match = line.match searchItemRegex
-            name = match[1]
-            version = match[2]
-            description = match[3]
-            parts.push { name: name, version: version, description: description, installed: false, installed_version: null }
-        else
-          if match = line.match listItemRegex
-            name = match[1]
-            version = match[2]
-            part = _.find parts, (p) ->
-              (p.name == name)
-            # For some reason within autoparts (Greg was making changes to packages within autoparts directly)
-            # it was failing and this part was failing cos it was not finding a part object
-            if part
-              part.installed = true
-              part.installed_version = version
+      try
+        parts = JSON.parse(stdout)
+      catch err
+        console.log("ERR: Invalid JSON - #{err}")
+        parts = []
 
       return ack? null, parts
 

@@ -33,7 +33,7 @@ module.exports = class FileFindCommand extends BaseCommand
     cmd
 
   commandPath: ->
-    '/usr/bin/ag'
+    '/usr/local/bin/ag'
 
   commandArguments: ->
     args = [

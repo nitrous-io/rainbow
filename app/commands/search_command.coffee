@@ -26,7 +26,7 @@ module.exports = class SearchCommand extends BaseCommand
     super()
 
   commandPath: ->
-    "/usr/bin/ag"
+    "/usr/local/bin/ag"
 
   commandArguments: ->
     args = [

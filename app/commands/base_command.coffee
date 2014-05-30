@@ -6,6 +6,8 @@
 # * inheriting classes may override detectErrors(stderrData) for
 #   specialized error-handling
 
+_ = require 'underscore'
+
 module.exports = class BaseCommand
   resultLimit: 500
 
@@ -45,8 +47,10 @@ module.exports = class BaseCommand
     @errBuffer += data
 
   closeFn: (data) =>
-    this._handleErrors @errBuffer, (errSlug) =>
-      this.sendFn 'commandError', errSlug
+    if @errBuffer != ''
+      _.each @errBuffer.split("\n"), (errLine) =>
+        this._handleErrors errLine, (errSlug) =>
+          this.sendFn 'commandError', errSlug
     this.sendFn 'commandComplete', data
 
   detectErrors: (data) ->

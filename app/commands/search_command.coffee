@@ -17,6 +17,7 @@ module.exports = class SearchCommand extends BaseCommand
     limit: 'LIMIT'
     pathNotFound: 'NOPATH'
     badRegex: 'BADREGEX'
+    maxMatches: 'MAXMATCH'
 
   # @term - search term
   # @location - search location, e.g. workspace or workspace/*.py
@@ -59,5 +60,10 @@ module.exports = class SearchCommand extends BaseCommand
         this.errorSlugs.pathNotFound
       when data.match /pcre_compile failed/
         this.errorSlugs.badRegex
+      when m = data.match /Too many matches in (.*?)\. Skipping/
+        # this happens when a file has too many matches -- ag truncates results
+        # after that point and outputs on stderr.
+        # Default is 10000, which we are using.  Can be changed with -m NUM
+        [this.errorSlugs.maxMatches, m[1]].join(':')
       else
         null

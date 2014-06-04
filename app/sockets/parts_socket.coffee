@@ -39,15 +39,21 @@ module.exports = class PartsSocket extends RainbowSocket
       if err
         return ack? err.toString(), null
 
-      lines = stdout.split "\n"
+      parts = []
+      installed = []
+
+      lines = stdout.split("\n").slice(0, 2)
+
+      if lines.length != 2
+        console.log("ERR: Invalid parts command output:\n#{stdout}")
+        return ack? 'invalid command output', parts
 
       try
         parts = JSON.parse(lines[0])
         installed = JSON.parse(lines[1])
       catch err
-        console.log("ERR: Invalid JSON - #{err}")
-        parts = []
-        installed = []
+        console.log("ERR: Failed to parse JSON: #{err}\n#{stdout}")
+        return ack? 'invalid command output', parts
 
       _.each parts, (part) ->
         _.extend part, { installed: false, installed_version: null }
@@ -62,13 +68,8 @@ module.exports = class PartsSocket extends RainbowSocket
 
       return ack? null, parts
 
-  onStatus: (term, ack) ->
-    if term?.length
-      escapedTerm = stringHelper.escape term
-    else
-      escapedTerm = ''
-
-    this._runPartsCommand "status #{escapedTerm} --json", (err, stdout, stderr) ->
+  onStatus: (ack) ->
+    this._runPartsCommand "status --json", (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
 

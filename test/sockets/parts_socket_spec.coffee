@@ -107,6 +107,7 @@ describe 'PartsSocket', ->
           stdout = '''
             [{"name":"lua","version":"5.2.2","category":"programming_languages","description":"Lua: A powerful, fast, lightweight, embeddable scripting language"},{"name":"freepascal","version":"2.6.2","category":"programming_languages","description":"Free Pascal: An open source Pascal compiler for Pascal and Object Pascal"},{"name":"meteor","version":"0.6.5.1","category":"web_development","description":"A real-time web development platform"}]
             [{"name":"lua","versions":["5.2.2"]},{"name":"freepascal","versions":["2.5.4"]}]
+
           '''
           execCommandStub.callsArgWith 1, null, stdout
           socket.emit 'listAll', (err, output) ->
@@ -120,15 +121,17 @@ describe 'PartsSocket', ->
 
       context 'when returned output is not valid JSON', ->
         it 'returns an empty array', (done) ->
+          sinon.stub(console, 'log')
+
           stdout = '''
             [{"name
           '''
           execCommandStub.callsArgWith 1, null, stdout
           socket.emit 'listAll', (err, output) ->
-            expect(err).to.be.null
-            expect(output).to.deep.equal [
-            ]
+            expect(err).not.to.be.null
+            expect(output).to.deep.equal []
             done()
+            console.log.restore()
 
     context 'when execCommand fails', ->
       context 'with some error', ->
@@ -151,15 +154,9 @@ describe 'PartsSocket', ->
     afterEach ->
       socket._runPartsCommand.restore()
 
-    context 'when a term is given', ->
-      it 'calls _runPartsCommand with status and given term', ->
-        socket.emit 'status', 'hello', ackSpy
-        expect(socket._runPartsCommand).to.have.been.calledWith "status 'hello' --json"
-
-    context 'when a term is not given', ->
-      it 'calls _runPartsCommand only with status', ->
-        socket.emit 'status', null, ackSpy
-        expect(socket._runPartsCommand).to.have.been.calledWith "status  --json"
+    it 'calls _runPartsCommand with status', ->
+      socket.emit 'status', ackSpy
+      expect(socket._runPartsCommand).to.have.been.calledWith "status --json", sinon.match.func
 
     context 'when _runPartsCommand succeeds', ->
       context 'when matching packages are found', ->
@@ -170,7 +167,7 @@ describe 'PartsSocket', ->
           socket._runPartsCommand.callsArgWith 1, null, stdout
 
         it 'returns an array of matching packages', (done) ->
-          socket.emit 'status', '', (err, output) ->
+          socket.emit 'status', (err, output) ->
             expect(err).to.be.null
             expect(output).to.deep.equal [
               { name: 'memcached', status: 'running' }
@@ -184,7 +181,7 @@ describe 'PartsSocket', ->
           socket._runPartsCommand.callsArgWith 1, new Error('Command failed: parts: no package found for "hello"'), null
 
         it 'returns an error', (done) ->
-          socket.emit 'status', 'hello', (err, output) ->
+          socket.emit 'status', (err, output) ->
             expect(err).not.to.be.null
             expect(output).to.be.null
             done()
@@ -194,7 +191,7 @@ describe 'PartsSocket', ->
           socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
 
         it 'returns an error', (done) ->
-          socket.emit 'status', 'hello', (err, output) ->
+          socket.emit 'status', (err, output) ->
             expect(err).not.to.be.null
             expect(output).to.be.null
             done()

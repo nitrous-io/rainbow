@@ -57,7 +57,7 @@ if require.main == module || require.main.filename.match /boot\.js/
     sc.register sockets.SSHSocket
     sc.register sockets.SFTPSocket
     sc.register sockets.PartsSocket
-    sc.registerMany sockets.CommandSocket, 'command', 'search', 'filefind'
+    sc.registerMany sockets.CommandSocket, 'command', 'search', 'filefind', 'unzip'
 
   sock.installHandlers server, prefix: '/ws'
 

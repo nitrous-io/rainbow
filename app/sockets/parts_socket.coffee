@@ -35,7 +35,7 @@ module.exports = class PartsSocket extends RainbowSocket
 
   onListAll: (ack) ->
     command = "#{partsPath} search --json && #{partsPath} list --json"
-    @ssh.execCommand command, (err, stdout, stderr) ->
+    @ssh.execCommand command, { timeout: 60000 }, (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
 
@@ -69,7 +69,7 @@ module.exports = class PartsSocket extends RainbowSocket
       return ack? null, parts
 
   onStatus: (ack) ->
-    this._runPartsCommand "status --json", (err, stdout, stderr) ->
+    @ssh.execCommand "#{partsPath} status --json", { timeout: 60000 }, (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
 
@@ -77,13 +77,9 @@ module.exports = class PartsSocket extends RainbowSocket
         parts = JSON.parse(stdout)
       catch err
         console.log("ERR: Invalid JSON - #{err}")
-        parts = []
+        return ack? 'invalid command output', []
 
       return ack? null, parts
-
-  _runPartsCommand: (command, callback)->
-    # increase the timeout for SSH exec commands.
-    @ssh.execCommand "#{partsPath} #{command}", { timeout: 60000 }, callback
 
   _streamPartsCommand: (command, part) ->
     @ssh.writeKeyFile (err, sshArgs, deleteKeyFile) =>

@@ -68,22 +68,6 @@ describe 'PartsSocket', ->
       it 'calls ack callback without an error message', ->
         expect(ackSpy).to.have.been.called
 
-  describe '#_runPartsCommand', ->
-    cbSpy = null
-    execCommandStub = null
-
-    beforeEach ->
-      cbSpy = sinon.spy()
-      execCommandStub = sinon.stub()
-      socket.ssh = { execCommand: execCommandStub }
-
-    afterEach ->
-      socket.ssh = null
-
-    it 'passes the given command and callback along with a timeout to execCommand', ->
-      socket._runPartsCommand 'list', cbSpy
-      expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts list", { timeout: 60000 }, cbSpy
-
   describe 'event: listAll', ->
     ackSpy = null
     execCommandStub = null
@@ -94,22 +78,22 @@ describe 'PartsSocket', ->
       socket.ssh = { execCommand: execCommandStub }
 
     afterEach ->
-      socket.partsPath = null
       socket.ssh = null
 
-    it 'calls execCommand with combined command', ->
+    it 'calls ssh.execCommand with combined command, with an extended timeout', ->
       socket.emit 'listAll', ackSpy
-      expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts search --json && /home/action/.parts/autoparts/bin/parts list --json", sinon.match.func
+      command = "/home/action/.parts/autoparts/bin/parts search --json && /home/action/.parts/autoparts/bin/parts list --json"
+      expect(execCommandStub).to.have.been.calledWith command, { timeout: 60000 }, sinon.match.func
 
-    context 'when execCommand succeeds', ->
+    context 'when ssh.execCommand succeeds', ->
       context 'when returned output is valid JSON', ->
-        it 'returns an array of packages with installed, installed_version properties set', (done) ->
+        it 'invokes the callback with an array of packages as the output', (done) ->
           stdout = '''
             [{"name":"lua","version":"5.2.2","category":"programming_languages","description":"Lua: A powerful, fast, lightweight, embeddable scripting language"},{"name":"freepascal","version":"2.6.2","category":"programming_languages","description":"Free Pascal: An open source Pascal compiler for Pascal and Object Pascal"},{"name":"meteor","version":"0.6.5.1","category":"web_development","description":"A real-time web development platform"}]
             [{"name":"lua","versions":["5.2.2"]},{"name":"freepascal","versions":["2.5.4"]}]
 
           '''
-          execCommandStub.callsArgWith 1, null, stdout
+          execCommandStub.callsArgWith 2, null, stdout
           socket.emit 'listAll', (err, output) ->
             expect(err).to.be.null
             expect(output).to.deep.equal [
@@ -120,25 +104,24 @@ describe 'PartsSocket', ->
             done()
 
       context 'when returned output is not valid JSON', ->
-        it 'returns an empty array', (done) ->
+        it 'invokes the callback with an empty array as the output', (done) ->
           sinon.stub(console, 'log')
-
           stdout = '''
             [{"name
           '''
-          execCommandStub.callsArgWith 1, null, stdout
+          execCommandStub.callsArgWith 2, null, stdout
           socket.emit 'listAll', (err, output) ->
             expect(err).not.to.be.null
             expect(output).to.deep.equal []
-            done()
             console.log.restore()
+            done()
 
-    context 'when execCommand fails', ->
+    context 'when ssh.execCommand fails', ->
       context 'with some error', ->
         beforeEach ->
-          execCommandStub.callsArgWith 1, new Error('some error'), null
+          execCommandStub.callsArgWith 2, new Error('some error'), null
 
-        it 'returns an error', (done) ->
+        it 'invokes the callback with an error set and null output', (done) ->
           socket.emit 'listAll', (err, output) ->
             expect(err).not.to.be.null
             expect(output).to.be.null
@@ -146,27 +129,29 @@ describe 'PartsSocket', ->
 
   describe 'event: status', ->
     ackSpy = null
+    execCommandStub = null
 
     beforeEach ->
-      cbSpy = sinon.spy()
-      sinon.stub socket, '_runPartsCommand'
+      ackSpy = sinon.spy()
+      execCommandStub = sinon.stub()
+      socket.ssh = { execCommand: execCommandStub }
 
     afterEach ->
-      socket._runPartsCommand.restore()
+      socket.ssh = null
 
-    it 'calls _runPartsCommand with status', ->
+    it 'calls ssh.execCommand with status command and an extended timeout', ->
       socket.emit 'status', ackSpy
-      expect(socket._runPartsCommand).to.have.been.calledWith "status --json", sinon.match.func
+      expect(execCommandStub).to.have.been.calledWith "/home/action/.parts/autoparts/bin/parts status --json", { timeout: 60000 }, sinon.match.func
 
-    context 'when _runPartsCommand succeeds', ->
+    context 'when ssh.execCommand succeeds', ->
       context 'when matching packages are found', ->
         beforeEach ->
           stdout = '''
             [{"name":"memcached","status":"running"},{"name":"mongodb","status":"stopped"}]
           '''
-          socket._runPartsCommand.callsArgWith 1, null, stdout
+          execCommandStub.callsArgWith 2, null, stdout
 
-        it 'returns an array of matching packages', (done) ->
+        it 'invokes the callback with an array of matching packages as the output', (done) ->
           socket.emit 'status', (err, output) ->
             expect(err).to.be.null
             expect(output).to.deep.equal [
@@ -175,26 +160,29 @@ describe 'PartsSocket', ->
             ]
             done()
 
-    context 'when _runPartsCommand fails', ->
-      context 'with no packages found', ->
-        beforeEach ->
-          socket._runPartsCommand.callsArgWith 1, new Error('Command failed: parts: no package found for "hello"'), null
+      context 'when returned output is not valid JSON', ->
+        it 'invokes the callback with an empty array as the output', (done) ->
+          sinon.stub(console, 'log')
 
-        it 'returns an error', (done) ->
+          stdout = '''
+            [{"name
+          '''
+          execCommandStub.callsArgWith 2, null, stdout
           socket.emit 'status', (err, output) ->
             expect(err).not.to.be.null
-            expect(output).to.be.null
+            expect(output).to.deep.equal []
+            console.log.restore()
             done()
 
-      context 'some other error', ->
-        beforeEach ->
-          socket._runPartsCommand.callsArgWith 1, new Error('some error'), null
+    context 'when ssh.execCommand fails', ->
+      beforeEach ->
+        execCommandStub.callsArgWith 2, new Error('Command failed: parts: no package found for "hello"'), null
 
-        it 'returns an error', (done) ->
-          socket.emit 'status', (err, output) ->
-            expect(err).not.to.be.null
-            expect(output).to.be.null
-            done()
+      it 'invokes the callback with an error set and null output', (done) ->
+        socket.emit 'status', (err, output) ->
+          expect(err).not.to.be.null
+          expect(output).to.be.null
+          done()
 
   describe '#_streamPartsCommand', ->
     context 'when writeKeyFile fails with error', ->

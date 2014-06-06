@@ -51,3 +51,7 @@ describe 'SearchCommand', ->
     it 'detects bad regex error', ->
       sampleErr = "ERR:  pcre_compile failed at position 4. Error: missing )\n"
       expect(command.detectErrors(sampleErr)).to.eq command.errorSlugs.badRegex
+
+    it 'detects max matches error', ->
+      sampleErr = "ERR: Too many matches in development.log.bak. Skipping the rest of this file\n"
+      expect(command.detectErrors(sampleErr)).to.eq command.errorSlugs.maxMatches + ':development.log.bak'

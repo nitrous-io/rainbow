@@ -37,11 +37,28 @@ describe 'BaseCommand', ->
       expect(command.errBuffer).to.eql 'Invalid path\nMalformed arguments\n'
 
   describe 'closeFn', ->
+    handlerSpy = null
+
+    beforeEach ->
+      handlerSpy = sinon.spy(command, '_handleErrors')
+
     it 'calls _handleErrors with errBuffer', ->
       command.errBuffer = "Error stat()ing"
-      handlerSpy = sinon.spy(command, '_handleErrors')
       command.closeFn(0)
       expect(handlerSpy).to.be.calledWith('Error stat()ing')
+
+    it 'calls _handleErrors with multiple errBuffer lines', ->
+      sinon.stub(command, 'detectErrors').returns('errslug')
+      command.errBuffer = "Bad\nWrong\nMistake"
+      command.closeFn(0)
+      expect(handlerSpy).to.be.calledWith('Bad')
+      expect(handlerSpy).to.be.calledWith('Wrong')
+      expect(handlerSpy).to.be.calledWith('Mistake')
+
+    it 'does not call _handleErrors on empty errBuffer', ->
+      command.errBuffer = ''
+      command.closeFn(0)
+      expect(handlerSpy).not.to.be.called
 
     it 'sends commandComplete', ->
       command.closeFn(0)

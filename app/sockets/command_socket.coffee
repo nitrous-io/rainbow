@@ -13,6 +13,7 @@ childProcess = require 'child_process'
 
 SearchCommand = require '../../app/commands/search_command'
 FileFindCommand = require '../../app/commands/file_find_command'
+CompressCommand = require '../../app/commands/compress_command'
 
 # The ControlPath option of ssh is set to this value, which is the file used by
 # ssh to persist the connection.
@@ -30,6 +31,7 @@ module.exports = class CommandSocket extends RainbowSocket
     this.on 'start',  _.bind(@onStart, this)
     this.on 'search', _.bind(@onSearch,  this)
     this.on 'filefind', _.bind(@onFileFind,  this)
+    this.on 'compress', _.bind(@onCompress,  this)
 
   destroy: ->
     # if the socket is set up but no commands are ever issued,
@@ -74,6 +76,14 @@ module.exports = class CommandSocket extends RainbowSocket
       this.sendAs 'filefind', event, [id, data].join(FileFindCommand.idDataDelimiter)
 
     this._streamCommand 'filefind', cmd.makeCommand(), ack
+
+  onCompress: (directory, ack) ->
+    cmd = new CompressCommand directory, (event, data) =>
+      this.sendAs 'compress', event, data
+
+    this._streamCommand 'compress', cmd.makeCommand()
+
+    ack?()
 
   send: (event, args...) ->
     throw "Cannot use send in CommandSocket, use sendAs"

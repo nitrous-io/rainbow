@@ -54,13 +54,38 @@ module.exports = class CommandSocket extends RainbowSocket
           console.log("ERR: Error exiting ssh connection: #{err} #{sshArgs}")
         deleteKeyFile()
 
-      @ssh = undefined
+        @ssh = undefined
+        @sshConnected = false
 
   onStart: (boxId, ack) ->
     this.fetchBoxAndKeyPair boxId, (err, box, keyPair) =>
       return ack?(err) if err
+
       @ssh = new SSHHelper 'action', box.host, box.port, keyPair.private_key
-      ack?()
+      @ssh.writeKeyFile (err, sshArgs, deleteKeyFile) =>
+        return ack?(err) if err
+        return ack?() if @sshConnected
+
+        sshArgs = this._addSshOptions sshArgs, [
+          # ControlMaster=yes : create a master connection on socket at
+          # location given in ControlPath
+          # ControlPersist=yes : keep master connection around indefinitely until
+          # issued ssh command with `-O exit`
+          "-o ControlPath=#{controlPath}"
+          '-o ControlMaster=yes'
+          '-o ControlPersist=yes'
+        ]
+        sshArgs.push "--"
+        sshArgs.push "LC_ALL=en_US.UTF-8"
+        sshArgs.push '/bin/echo' # dummy command
+
+        masterProcess = childProcess.spawn '/usr/bin/ssh', sshArgs, { env: {} }
+
+        masterProcess.on 'error', =>
+          @sshConnected = false
+
+        deleteKeyFile()
+        ack?()
 
   onSearch: (tabId, term, searchRoot, options, ack) ->
     cmd = new SearchCommand term, searchRoot, options, (event, data) =>
@@ -91,16 +116,11 @@ module.exports = class CommandSocket extends RainbowSocket
     @ssh.writeKeyFile (err, sshArgs, deleteKeyFile) =>
       return ack?(err) if err
 
-      @sshConnected = true
-
       sshArgs = this._addSshOptions sshArgs, [
-        # ControlMaster=auto : try to use a master connection, or create a
-        # new one if it doesn't already exist
-        # ControlPersist=yes : keep master connection around indefinitely until
-        # issued ssh command with `-O exit`
+        # ControlMaster=no : attempt to use master connection, fall back to
+        # creating a new one if it doesn't already exist
+        '-o ControlMaster=no'
         "-o ControlPath=#{controlPath}"
-        '-o ControlMaster=auto'
-        '-o ControlPersist=yes'
       ]
       sshArgs.push "--"
       sshArgs.push "LC_ALL=en_US.UTF-8"

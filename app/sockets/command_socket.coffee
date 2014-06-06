@@ -38,6 +38,8 @@ module.exports = class CommandSocket extends RainbowSocket
       @ssh = undefined
       return
 
+    return if !@ssh
+
     @ssh.writeKeyFile (err, sshArgs, deleteKeyFile) =>
       if err
         return
@@ -64,18 +66,14 @@ module.exports = class CommandSocket extends RainbowSocket
     cmd = new SearchCommand term, searchRoot, options, (event, data) =>
       this.sendAs 'search', event, [tabId, data].join(SearchCommand.idDataDelimiter)
 
-    this._streamCommand 'search', cmd.makeCommand()
-
-    ack?()
+    this._streamCommand 'search', cmd.makeCommand(), ack
 
   onFileFind: (term, location, ack) ->
     cmd = new FileFindCommand term, location, (event, data) =>
       id = [term, location].join(FileFindCommand.searchKeyDelimiter)
       this.sendAs 'filefind', event, [id, data].join(FileFindCommand.idDataDelimiter)
 
-    this._streamCommand 'filefind', cmd.makeCommand()
-
-    ack?()
+    this._streamCommand 'filefind', cmd.makeCommand(), ack
 
   send: (event, args...) ->
     throw "Cannot use send in CommandSocket, use sendAs"
@@ -84,10 +82,14 @@ module.exports = class CommandSocket extends RainbowSocket
     @connection.send [namespace, event, args]
 
   # the command for _streamCommand is a child of BaseCommand
-  _streamCommand: (namespace, command) ->
+  _streamCommand: (namespace, command, ack) ->
+    if !@ssh
+      console.log("WARN: Received #{namespace} with no ssh connection")
+      ack?('No ssh connection')
+      return
+
     @ssh.writeKeyFile (err, sshArgs, deleteKeyFile) =>
-      if err
-        return
+      return ack?(err) if err
 
       @sshConnected = true
 
@@ -119,6 +121,8 @@ module.exports = class CommandSocket extends RainbowSocket
       commandProcess.on 'error', ->
         command.errorFn?()
         deleteKeyFile()
+
+      ack?()
 
   _addSshOptions: (sshArgs, options) ->
     # last element of sshArgs from writeKeyFile callback is user@host

@@ -115,6 +115,12 @@ module.exports = class PartsSocket extends RainbowSocket
   onListAll: (ack) ->
     separator = '------installedParts------'
     command = "#{partsPath} search && echo '#{separator}' && #{partsPath} list"
+
+    if !@ssh
+      console.log("WARN: Received parts.listall with no ssh connection")
+      ack?('No ssh connection')
+      return
+
     @ssh.execCommand command, (err, stdout, stderr) ->
       if err
         return ack? err.toString(), null
@@ -150,10 +156,19 @@ module.exports = class PartsSocket extends RainbowSocket
       return ack? null, parts
 
   _runPartsCommand: (command, callback)->
+    if !@ssh
+      console.log("WARN: Received parts.#{command} with no ssh connection")
+      callback('No ssh connection')
+      return
+
     # increase the timeout for SSH exec commands.
     @ssh.execCommand "#{partsPath} #{command}", { timeout: 60000 }, callback
 
   _streamPartsCommand: (command, part) ->
+    if !@ssh
+      console.log("WARN: Received parts.#{command} with no ssh connection")
+      return
+
     @ssh.writeKeyFile (err, sshArgs, deleteKeyFile) =>
       if err
         return
